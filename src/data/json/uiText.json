@@ -1,0 +1,19 @@
+{
+  "feed": {
+    "composerPlaceholder": "Write something ...",
+    "photoButton": "Photo",
+    "postButton": "Post",
+    "privacyOptions": [
+      { "value": "public", "label": "Public" },
+      { "value": "private", "label": "Private" }
+    ],
+    "actions": {
+      "like": "Like",
+      "comment": "Comment",
+      "reply": "Reply"
+    },
+    "commentPlaceholder": "Write a comment",
+    "replyPlaceholder": "Write a reply...",
+    "previousCommentsLabel": "View {count} previous comments"
+  }
+}

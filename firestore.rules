@@ -1,0 +1,147 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =====================================================================
+    // Helper functions
+    // =====================================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isSignedIn() {
+      return isAuthenticated();
+    }
+
+    // =====================================================================
+    // Users collection
+    // =====================================================================
+
+    match /users/{uid} {
+      // Any authenticated user can read user profiles
+      allow read: if isSignedIn();
+
+      // Users can only create/update their own profile
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid);
+
+      // Only the user themselves can delete their account
+      allow delete: if isOwner(uid);
+    }
+
+    // =====================================================================
+    // Posts collection
+    // =====================================================================
+
+    match /posts/{postId} {
+      // Read access depends on visibility:
+      //   - Public posts: any authenticated user
+      //   - Private posts: only the owner
+      allow read: if isSignedIn() && (
+        resource.data.visibility == 'public' ||
+        isOwner(resource.data.userId)
+      );
+
+      // Create: only authenticated users, must set userId to own uid
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+
+      // Owners can update their posts. Authenticated users may also update
+      // only the like counter and timestamp when toggling a like.
+      allow update: if isOwner(resource.data.userId) ||
+        (isSignedIn() &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['likesCount', 'updatedAt']) &&
+          (request.resource.data.likesCount == resource.data.likesCount + 1 ||
+            request.resource.data.likesCount == resource.data.likesCount - 1));
+
+      // Delete: only the owner
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // =====================================================================
+    // Comments collection
+    // =====================================================================
+
+    match /comments/{commentId} {
+      // Any authenticated user can read comments
+      allow read: if isSignedIn();
+
+      // Create: only authenticated, must set userId to own uid
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+
+      // Update: only the comment author
+      allow update: if isOwner(resource.data.userId);
+
+      // Delete: only the comment author
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // =====================================================================
+    // Replies collection
+    // =====================================================================
+
+    match /replies/{replyId} {
+      // Any authenticated user can read replies
+      allow read: if isSignedIn();
+
+      // Create: only authenticated, must set userId to own uid
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+
+      // Update: only the reply author
+      allow update: if isOwner(resource.data.userId);
+
+      // Delete: only the reply author
+      allow delete: if isOwner(resource.data.userId);
+    }
+
+    // =====================================================================
+    // Post Likes collection
+    // Like document ID follows pattern: {postId}_{userId}
+    // =====================================================================
+
+    match /postLikes/{likeId} {
+      // Any authenticated user can read likes
+      allow read: if isSignedIn();
+
+      // Create: authenticated user can only create a like where the document
+      // ID ends with their own uid, preventing impersonation
+      allow create: if isSignedIn() && likeId.endsWith('_' + request.auth.uid) &&
+        request.resource.data.userId == request.auth.uid;
+
+      // Delete: only the user who created the like can remove it
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      // No update — likes are created and deleted only
+    }
+
+    // =====================================================================
+    // Comment Likes collection
+    // Like document ID follows pattern: {commentId}_{userId}
+    // =====================================================================
+
+    match /commentLikes/{likeId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && likeId.endsWith('_' + request.auth.uid) &&
+        request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // =====================================================================
+    // Reply Likes collection
+    // Like document ID follows pattern: {replyId}_{userId}
+    // =====================================================================
+
+    match /replyLikes/{likeId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && likeId.endsWith('_' + request.auth.uid) &&
+        request.resource.data.userId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}

@@ -1,0 +1,114 @@
+[
+  {
+    "id": "post-1",
+    "author": {
+      "id": "user-karim",
+      "name": "Karim Saif",
+      "initials": "K",
+      "avatarColor": "#0ACF83"
+    },
+    "createdAt": "2026-07-29T10:30:00Z",
+    "displayTime": "5 minute ago",
+    "visibility": "public",
+    "title": "-Healthy Tracking App",
+    "image": "timeline_img.png",
+    "likes": {
+      "count": 9,
+      "likedByCurrentUser": false,
+      "previewUsers": [
+        {
+          "id": "user-julia",
+          "name": "Julia Stone",
+          "initials": "J",
+          "avatarColor": "#1890FF"
+        },
+        {
+          "id": "user-maya",
+          "name": "Maya Redwood",
+          "initials": "M",
+          "avatarColor": "#845EF7"
+        },
+        {
+          "id": "user-ava",
+          "name": "Ava Brooks",
+          "initials": "A",
+          "avatarColor": "#FFD43B",
+          "color": "#333"
+        }
+      ]
+    },
+    "comments": {
+      "previousCount": 4,
+      "items": [
+        {
+          "id": "comment-1",
+          "author": {
+            "id": "user-radovan",
+            "name": "Radovan SkillArena",
+            "initials": "R",
+            "avatarColor": "#FEA364"
+          },
+          "text": "It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout.",
+          "displayTime": "21m",
+          "likes": {
+            "count": 198,
+            "likedByCurrentUser": false
+          },
+          "replies": [
+            {
+              "id": "reply-1",
+              "author": {
+                "id": "user-maya",
+                "name": "Maya Redwood",
+                "initials": "M",
+                "avatarColor": "#845EF7"
+              },
+              "text": "That's a great point! I totally agree with your perspective on the layout.",
+              "displayTime": "15m",
+              "likes": {
+                "count": 24,
+                "likedByCurrentUser": false
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "post-2",
+    "author": {
+      "id": "user-karim",
+      "name": "Karim Saif",
+      "initials": "K",
+      "avatarColor": "#0ACF83"
+    },
+    "createdAt": "2026-07-29T10:30:00Z",
+    "displayTime": "5 minute ago",
+    "visibility": "private",
+    "title": "-Healthy Tracking App",
+    "image": "timeline_img.png",
+    "likes": {
+      "count": 5,
+      "likedByCurrentUser": false,
+      "previewUsers": [
+        {
+          "id": "user-julia",
+          "name": "Julia Stone",
+          "initials": "J",
+          "avatarColor": "#1890FF"
+        },
+        {
+          "id": "user-maya",
+          "name": "Maya Redwood",
+          "initials": "M",
+          "avatarColor": "#845EF7"
+        }
+      ]
+    },
+    "comments": {
+      "previousCount": 0,
+      "items": []
+    }
+  }
+]

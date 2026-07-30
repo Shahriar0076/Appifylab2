@@ -1,0 +1,63 @@
+import { createContext, useContext, useMemo, useState } from 'react';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { useSyncQueueProcessor } from '../hooks/useSyncQueueProcessor';
+import { useFeedData } from '../hooks/useFeedData';
+import { useFeedActions } from '../hooks/useFeedActions';
+
+const FeedContext = createContext(null);
+
+export function FeedProvider({ children }) {
+  const {
+    posts,
+    isLoading,
+    isFetchingRemote,
+    storageWarning,
+    setPosts,
+    fetchAndMergeRemotePosts,
+    resetFeed,
+  } = useFeedData();
+
+  const { isOnline } = useOnlineStatus();
+  const [syncStatusMessage, setSyncStatusMessage] = useState('');
+
+  useSyncQueueProcessor({ isOnline, setSyncStatusMessage, setPosts, posts });
+
+  const actions = useFeedActions(setPosts, posts);
+
+  const value = useMemo(
+    () => ({
+      posts,
+      isLoading,
+      isFetchingRemote,
+      syncStatusMessage,
+      isOnline,
+      storageWarning,
+      ...actions,
+      fetchAndMergeRemotePosts,
+      resetFeed,
+    }),
+    [
+      posts,
+      isLoading,
+      isFetchingRemote,
+      syncStatusMessage,
+      isOnline,
+      storageWarning,
+      actions,
+      fetchAndMergeRemotePosts,
+      resetFeed,
+    ]
+  );
+
+  return <FeedContext.Provider value={value}>{children}</FeedContext.Provider>;
+}
+
+export function useFeed() {
+  const context = useContext(FeedContext);
+
+  if (!context) {
+    throw new Error('useFeed must be used within a FeedProvider');
+  }
+
+  return context;
+}

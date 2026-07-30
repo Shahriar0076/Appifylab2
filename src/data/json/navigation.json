@@ -1,0 +1,19 @@
+{
+  "mainNav": [
+    {
+      "label": "Home",
+      "path": "/feed",
+      "icon": "Home"
+    }
+  ],
+  "authLinks": {
+    "login": {
+      "label": "Login",
+      "path": "/login"
+    },
+    "register": {
+      "label": "Create New Account",
+      "path": "/register"
+    }
+  }
+}
