@@ -3,6 +3,7 @@
 A social media feed application built with **React 19**, **Firebase Auth + Firestore**, and **Vite**. Users can register, log in, create posts with images, comment, reply, toggle likes, and control post visibility — all with an **offline-first** architecture that syncs seamlessly to the cloud.
 
 **Live Demo:** [https://appifylab2.netlify.app/](https://appifylab2.netlify.app/)
+**Repository:** [https://github.com/Shahriar0076/Appifylab2](https://github.com/Shahriar0076/Appifylab2)
 
 ---
 
@@ -123,13 +124,14 @@ app/
 ### Installation
 
 ```
-cd app
+git clone https://github.com/Shahriar0076/Appifylab2.git
+cd Appifylab2/app
 npm install
 ```
 
 ### Environment Variables
 
-Create a `.env.local` file with your credentials:
+Create a `.env.local` file in the `app/` directory with your credentials:
 
 ```
 VITE_FIREBASE_API_KEY=your_api_key
