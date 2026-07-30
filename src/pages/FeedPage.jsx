@@ -10,7 +10,7 @@ import { toast } from '../utils/toast';
 import { useFeed } from '../context/FeedContext';
 import { useAuth } from '../context/AuthContext';
 
-const POSTS_PER_PAGE = 5;
+const POSTS_PER_PAGE = 2;
 const LOAD_MORE_PRELOAD_DISTANCE = 400;
 
 export function FeedPage() {
