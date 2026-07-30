@@ -70,7 +70,7 @@ A social media feed application built with **React 19**, **Firebase Auth + Fires
 ## Project Structure
 
 ```
-app/
+Appifylab2/
   index.html                HTML entry point
   package.json
   vite.config.js
@@ -123,7 +123,8 @@ app/
 ### Installation
 
 ```
-cd app
+git clone https://github.com/Shahriar0076/Appifylab2.git
+cd Appifylab2
 npm install
 ```
 
