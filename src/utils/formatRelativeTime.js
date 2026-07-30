@@ -1,6 +1,6 @@
 /**
  * Format a date as a relative time string (e.g. "2m", "3h", "4d", "2w").
- * Returns "just now" for dates less than 10 seconds ago.
+ * Returns "now" for dates less than 10 seconds ago.
  *
  * @param {string|Date|undefined|null} dateInput - ISO string, Date object, or null
  * @returns {string} Relative time string
@@ -15,7 +15,7 @@ export function formatRelativeTime(dateInput) {
   const diffMs = now - date.getTime();
   const diffSec = Math.floor(diffMs / 1000);
 
-  if (diffSec < 10) return 'just now';
+  if (diffSec < 10) return 'now';
   if (diffSec < 60) return `${diffSec}s`;
 
   const diffMin = Math.floor(diffSec / 60);

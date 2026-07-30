@@ -49,7 +49,7 @@ export function createLocalPost({ id, author, content, privacy, imagePath }) {
     imagePublicId: null,
     author,
     createdAt: new Date().toISOString(),
-    displayTime: 'just now',
+    displayTime: 'now',
     visibility: privacy,
     title: content || '',
     image: imagePath,
