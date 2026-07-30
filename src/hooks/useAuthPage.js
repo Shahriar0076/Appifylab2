@@ -33,6 +33,7 @@ export function useAuthPage({ variant, validate, submit, mapValues }) {
 
   useEffect(() => {
     getAuthPageContent(variant).then(setContent);
+    import('../app/FeedRoute');
   }, [variant]);
 
   const handleFieldChange = useCallback((name, value) => {
@@ -63,6 +64,7 @@ export function useAuthPage({ variant, validate, submit, mapValues }) {
       try {
         const submitValues = mapValues ? mapValues(formValues) : formValues;
         await submit(submitValues);
+        import('../app/FeedRoute');
         toast.success(
           variant === 'login'
             ? 'Welcome back! Redirecting to your feed...'
