@@ -106,7 +106,7 @@ function togglePostLikes(post, currentUser = null) {
       previewUsers: likes.likedByCurrentUser
         ? previewUsers.some((user) => user.id === currentUser.id)
           ? previewUsers
-          : [currentUser, ...previewUsers].slice(0, 3)
+          : [currentUser, ...previewUsers].slice(0, 6)
         : previewUsers.filter((user) => user.id !== currentUser.id),
     },
   };

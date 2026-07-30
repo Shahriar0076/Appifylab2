@@ -154,6 +154,44 @@ npm run lint      # oxlint
 
 ---
 
+## Database Seeding
+
+Seed the database with sample users, posts, comments, and likes.
+
+### 1. Install dependency
+
+```bash
+npm install firebase-admin
+```
+
+### 2. Get a service account key
+
+Go to [Firebase Console](https://console.firebase.google.com/) → **Project settings** → **Service accounts** → **Generate new private key**. Save the JSON as `scripts/service-account.json`.
+
+### 3. Run the seed script
+
+```bash
+node scripts/seed.mjs
+```
+
+The script will:
+- Upload images from `C:\Users\Shahriar\Downloads\images\posts\` to Cloudinary
+- Create Firebase Auth accounts
+- Create Firestore documents (users, posts, comments, replies, likes)
+
+### Seed credentials
+
+| Email | Password |
+|-------|----------|
+| `karim@example.com` | `password123` |
+| `dylan@example.com` | `password123` |
+| `julia@example.com` | `password123` |
+| `maya@example.com` | `password123` |
+| `ava@example.com` | `password123` |
+| `radovan@example.com` | `password123` |
+
+---
+
 ## Deploy to Netlify
 
 1. Connect your GitHub repo to Netlify

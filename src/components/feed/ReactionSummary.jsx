@@ -15,9 +15,7 @@ export function ReactionSummary({ likes, commentCount, currentUser }) {
             className={
               idx === 0
                 ? '_react_img1 _letter_avatar'
-                : idx === 1
-                ? '_react_img _letter_avatar'
-                : '_react_img _letter_avatar _rect_img_mbl_none'
+                : '_react_img _letter_avatar'
             }
             style={{
               background: user.avatarColor,
@@ -30,6 +28,9 @@ export function ReactionSummary({ likes, commentCount, currentUser }) {
         ))}
       </div>
       <div className="_feed_inner_timeline_total_reacts_txt">
+        <p className="_feed_inner_timeline_total_reacts_para2">
+          <span>{likes?.count || 0}</span> Likes
+        </p>
         <p className="_feed_inner_timeline_total_reacts_para1">
           <a href="#0"><span className="_comment_count">{commentCount || 0}</span> Comments</a>
         </p>

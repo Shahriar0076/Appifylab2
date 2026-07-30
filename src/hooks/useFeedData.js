@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { clearAllImages } from '../utils/uploadImageStore';
-import { safeReadArray, safeWriteJson, safeRemove, backupCorrupted } from '../utils/storage';
+import { safeWriteJson, safeRemove } from '../utils/storage';
 import { readQueue } from '../services/syncQueueService';
-import { fetchRemotePosts } from '../services/firestoreFeedService';
+import {
+  fetchRemotePosts,
+  subscribeToPostLikes,
+} from '../services/firestoreFeedService';
+import { getRemotePostId } from '../utils/feedPostIdentity';
 import { toast } from '../utils/toast';
 
 const FEED_STORAGE_VERSION = 3;
@@ -97,41 +101,20 @@ export function useFeedData(userId) {
   const [lastDoc, setLastDoc] = useState(null);
   const [hasMoreRemote, setHasMoreRemote] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const remotePostIdsKey = JSON.stringify(
+    [...new Set(posts.map(getRemotePostId).filter(Boolean))].sort()
+  );
 
-  // ── Initial load: current account's cache only ──
+  // ── Initial load: clear cache and always fetch fresh from Firestore ──
   useEffect(() => {
     let isMounted = true;
 
     function loadPosts() {
       if (!userId) return;
-      const storedPosts = readStoredPosts(userId);
 
-      if (storedPosts) {
-        if (isMounted) {
-          // Recover orphaned posts (pending but no matching queue item)
-          const queue = readQueue();
-          const queuePostIds = new Set(
-            queue
-              .filter((q) => q.status === 'pending' || q.status === 'syncing')
-              .map((q) => q.payload?.localPostId || q.payload?.postId)
-              .filter(Boolean)
-          );
-          const recovered = storedPosts.map((p) => {
-            if (p.syncStatus === 'pending' && !queuePostIds.has(p.id)) {
-              return {
-                ...p,
-                syncStatus: 'failed',
-                syncError: 'Sync queue item lost — tap Retry to try again',
-              };
-            }
-            return p;
-          });
-          setPosts(recovered);
-          setHasLoadedFromStorage(true);
-          setIsLoading(false);
-        }
-        return;
-      }
+      // Clear the localStorage cache so fresh data is always fetched on
+      // browser reload instead of showing stale cached posts first.
+      clearStoredPosts(userId);
 
       if (isMounted) {
         setPosts([]);
@@ -176,6 +159,61 @@ export function useFeedData(userId) {
     // The last item in the queue is the most recent toggle for this post
     return toggles[toggles.length - 1].payload.liked;
   }
+
+  // Keep like counts, preview users, and the signed-in user's like state live
+  // for every remote post that has been loaded through pagination.
+  useEffect(() => {
+    if (!userId) return undefined;
+
+    const postIds = JSON.parse(remotePostIdsKey);
+    if (postIds.length === 0) return undefined;
+
+    return subscribeToPostLikes({
+      postIds,
+      currentUserId: userId,
+      onChange: (likesByPost) => {
+        setPosts((currentPosts) =>
+          currentPosts.map((post) => {
+            const liveLikes = likesByPost.get(getRemotePostId(post));
+            if (!liveLikes) return post;
+
+            const queuedLiked = getQueuedLikeValue(post.id, userId);
+            if (queuedLiked === null) {
+              return { ...post, likes: liveLikes };
+            }
+
+            const liveLiked = liveLikes.likedByCurrentUser;
+            const count = Math.max(
+              0,
+              liveLikes.count +
+                (queuedLiked === liveLiked ? 0 : queuedLiked ? 1 : -1)
+            );
+            const currentUserPreview = post.likes?.previewUsers?.find(
+              (user) => user.id === userId
+            );
+            const previewUsers = queuedLiked
+              ? liveLikes.previewUsers.some((user) => user.id === userId) ||
+                !currentUserPreview
+                ? liveLikes.previewUsers
+                : [currentUserPreview, ...liveLikes.previewUsers].slice(0, 6)
+              : liveLikes.previewUsers.filter((user) => user.id !== userId);
+
+            return {
+              ...post,
+              likes: {
+                count,
+                previewUsers,
+                likedByCurrentUser: queuedLiked,
+              },
+            };
+          })
+        );
+      },
+      onError: (error) => {
+        console.warn('Live post-like updates stopped:', error);
+      },
+    });
+  }, [remotePostIdsKey, setPosts, userId]);
 
   /**
    * Check if there is a pending/syncing/failed TOGGLE_COMMENT_LIKE queue item.
@@ -303,7 +341,7 @@ export function useFeedData(userId) {
         ? previewUsers.some((u) => u.id === currentUserId)
           ? previewUsers
           : currentUser
-            ? [currentUser, ...previewUsers.filter((u) => u.id !== currentUserId)].slice(0, 3)
+            ? [currentUser, ...previewUsers.filter((u) => u.id !== currentUserId)].slice(0, 6)
             : previewUsers
         : previewUsers.filter((u) => u.id !== currentUserId),
       likedByCurrentUser: resolvedLiked,
@@ -314,33 +352,29 @@ export function useFeedData(userId) {
   function mergeRemotePostsIntoState(currentPosts, result, remoteCurrentUser) {
     const merged = [...currentPosts];
     const existingLocalIds = new Set(merged.map((p) => p.localId || p.id));
-    const existingRemoteIds = new Set(
-      merged.map((p) => p.remoteId).filter(Boolean)
-    );
 
     for (const remotePost of result.posts) {
-      if (remotePost.remoteId && existingRemoteIds.has(remotePost.remoteId)) {
-        const idx = merged.findIndex(
-          (p) => p.remoteId === remotePost.remoteId
-        );
-        if (idx !== -1) {
-          merged[idx] = {
-            ...merged[idx],
-            ...remotePost,
-            comments: mergeComments(
-              merged[idx].comments,
-              remotePost.comments,
-              remoteCurrentUser?.id
-            ),
-            likes: mergeLikes(
-              { ...remotePost.likes, _postId: remotePost.id },
-              merged[idx].likes,
-              remoteCurrentUser?.id,
-              remoteCurrentUser
-            ),
-            localId: merged[idx].localId || merged[idx].id,
-          };
-        }
+      const sameRemoteIdIndex = merged.findIndex(
+        (post) => getRemotePostId(post) === remotePost.remoteId
+      );
+      if (sameRemoteIdIndex !== -1) {
+        const currentPost = merged[sameRemoteIdIndex];
+        merged[sameRemoteIdIndex] = {
+          ...currentPost,
+          ...remotePost,
+          comments: mergeComments(
+            currentPost.comments,
+            remotePost.comments,
+            remoteCurrentUser?.id
+          ),
+          likes: mergeLikes(
+            { ...remotePost.likes, _postId: currentPost.id },
+            currentPost.likes,
+            remoteCurrentUser?.id,
+            remoteCurrentUser
+          ),
+          localId: remotePost.localId || currentPost.localId || null,
+        };
         continue;
       }
 
@@ -380,7 +414,7 @@ export function useFeedData(userId) {
     if (!currentUser) return;
     setIsFetchingRemote(true);
     try {
-      const result = await fetchRemotePosts({ currentUser, pageSize: 5 });
+      const result = await fetchRemotePosts({ currentUser, pageSize: 10 });
       if (result.posts.length === 0) {
         setHasMoreRemote(false);
         return;
@@ -389,9 +423,10 @@ export function useFeedData(userId) {
       setLastDoc(result.lastDoc);
       setHasMoreRemote(result.hasMore);
 
-      setPosts((currentPosts) =>
-        mergeRemotePostsIntoState(currentPosts, result, currentUser)
-      );
+      setPosts((currentPosts) => {
+        const merged = mergeRemotePostsIntoState(currentPosts, result, currentUser);
+        return merged;
+      });
     } catch (err) {
       console.warn('Failed to fetch remote posts:', err);
       toast.warning('Could not fetch latest posts. Showing cached data.');
@@ -406,7 +441,7 @@ export function useFeedData(userId) {
     if (!currentUser || !hasMoreRemote || !lastDoc || isLoadingMore) return;
     setIsLoadingMore(true);
     try {
-      const result = await fetchRemotePosts({ currentUser, pageSize: 5, lastDoc });
+      const result = await fetchRemotePosts({ currentUser, pageSize: 10, lastDoc });
 
       if (result.posts.length === 0) {
         setHasMoreRemote(false);

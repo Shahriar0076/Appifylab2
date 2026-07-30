@@ -11,6 +11,7 @@ import { useFeed } from '../context/FeedContext';
 import { useAuth } from '../context/AuthContext';
 
 const POSTS_PER_PAGE = 5;
+const LOAD_MORE_PRELOAD_DISTANCE = 400;
 
 export function FeedPage() {
   const [uiText, setUiText] = useState({});
@@ -19,6 +20,7 @@ export function FeedPage() {
   const {
     posts,
     isLoading,
+    isFetchingRemote,
     syncStatusMessage,
     isOnline,
     storageWarning,
@@ -64,8 +66,11 @@ export function FeedPage() {
   );
   const visiblePosts = orderedPosts.slice(0, visiblePostCount);
   const hasMorePosts = visiblePostCount < orderedPosts.length;
+  const showFeedSkeleton =
+    isLoading || (isFetchingRemote && posts.length === 0);
 
-  // Reveal cached posts or fetch another remote page near the viewport bottom.
+  // Reveal cached posts or fetch another remote page before the user reaches
+  // the end of the currently visible feed.
   useEffect(() => {
     const loadMoreNode = loadMoreRef.current;
     if (!loadMoreNode || (!hasMorePosts && !hasMoreRemote)) return undefined;
@@ -82,7 +87,10 @@ export function FeedPage() {
           loadMoreRemotePosts(currentUser);
         }
       },
-      { rootMargin: '400px 0px' }
+      {
+        rootMargin: `0px 0px ${LOAD_MORE_PRELOAD_DISTANCE}px 0px`,
+        threshold: 0,
+      }
     );
 
     observer.observe(loadMoreNode);
@@ -158,8 +166,9 @@ export function FeedPage() {
   }
 
   // ── User ready, initial posts loading: show skeleton cards ──
-  // Show skeleton only on initial load to avoid flickering cached content
-  if (isLoading) {
+  // Keep cached posts visible while refreshing, but show skeleton cards until
+  // the first remote page arrives when there is no cached feed to display.
+  if (showFeedSkeleton) {
     return (
       <PageShell>
         <div className="_layout">

@@ -1858,6 +1858,7 @@
     color:var(--color6);
 }
 ._feed_inner_timeline_total_reacts_para2 {
+    margin: 0;
     font-style: normal;
     font-weight: normal;
     font-size: 14px;

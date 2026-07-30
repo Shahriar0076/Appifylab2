@@ -13,6 +13,7 @@ import {
   serverTimestamp,
   increment,
   runTransaction,
+  onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { formatRelativeTime } from '../utils/formatRelativeTime';
@@ -61,6 +62,7 @@ function buildAuthorSnapshot(user) {
 function normalizeFirestorePost(docSnap, authorProfile) {
   const data = docSnap.data();
   const createdAtISO = data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString();
+  // Normalize the Firestore post doc into the UI shape
   return {
     id: docSnap.id,
     remoteId: docSnap.id,
@@ -181,7 +183,7 @@ async function fetchPostLikesForPosts(postIds, currentUserId) {
     });
 
     const previewUsers = [];
-    for (const like of likes.slice(0, 3)) {
+    for (const like of likes.slice(0, 6)) {
       const profile = await getUserSnapshot(like.userId);
       if (profile) previewUsers.push(profile);
     }
@@ -192,7 +194,91 @@ async function fetchPostLikesForPosts(postIds, currentUserId) {
     });
   }
 
+  // Done fetching likes per post
   return likesByPost;
+}
+
+/**
+ * Subscribe to likes for the posts currently loaded in the feed.
+ * Firestore `in` queries accept at most 10 values, so each group gets its own
+ * listener and reports updates only for the post IDs in that group.
+ */
+export function subscribeToPostLikes({
+  postIds,
+  currentUserId,
+  onChange,
+  onError,
+}) {
+  const uniquePostIds = [...new Set(postIds.filter(Boolean))];
+  if (uniquePostIds.length === 0) return () => {};
+
+  let active = true;
+  const unsubscribers = [];
+
+  for (let i = 0; i < uniquePostIds.length; i += 10) {
+    const batch = uniquePostIds.slice(i, i + 10);
+    let snapshotVersion = 0;
+    const likesQuery = query(
+      collection(db, 'postLikes'),
+      where('postId', 'in', batch)
+    );
+
+    const unsubscribe = onSnapshot(
+      likesQuery,
+      async (snapshot) => {
+        const currentVersion = ++snapshotVersion;
+        const rawLikesByPost = new Map(batch.map((postId) => [postId, []]));
+
+        for (const likeSnap of snapshot.docs) {
+          const like = likeSnap.data();
+          if (rawLikesByPost.has(like.postId)) {
+            rawLikesByPost.get(like.postId).push(like);
+          }
+        }
+
+        const likesByPost = new Map();
+        await Promise.all(
+          batch.map(async (postId) => {
+            const likes = rawLikesByPost.get(postId);
+            likes.sort((a, b) => {
+              const aTime = a.createdAt?.toMillis?.() || 0;
+              const bTime = b.createdAt?.toMillis?.() || 0;
+              return bTime - aTime;
+            });
+
+            const previewUsers = (
+              await Promise.all(
+                likes.slice(0, 6).map((like) => getUserSnapshot(like.userId))
+              )
+            ).filter(Boolean);
+
+            likesByPost.set(postId, {
+              count: likes.length,
+              previewUsers,
+              likedByCurrentUser: likes.some(
+                (like) => like.userId === currentUserId
+              ),
+            });
+          })
+        );
+
+        // Ignore an older async profile lookup if a newer snapshot arrived.
+        if (active && currentVersion === snapshotVersion) {
+          onChange(likesByPost);
+        }
+      },
+      (error) => {
+        if (active) onError?.(error);
+      }
+    );
+
+    unsubscribers.push(unsubscribe);
+  }
+
+  return () => {
+    active = false;
+    unsubscribers.forEach((unsubscribe) => unsubscribe());
+  };
 }
 
 /**
@@ -365,6 +451,7 @@ async function fetchCommentsForPosts(postIds, currentUserId) {
     delete comment._postId;
   }
 
+  // Done fetching comments
   return commentsByPost;
 }
 
@@ -432,6 +519,7 @@ export async function fetchRemotePosts({ currentUser, pageSize = 10, lastDoc = n
 
   // 3a. Fetch post likes, comments, and replies for all fetched posts
   const postIds = Array.from(postMap.keys());
+  // Enrich with likes and comments
   const likesByPostId = await fetchPostLikesForPosts(postIds, uid);
   for (const [postId, likes] of likesByPostId) {
     const post = postMap.get(postId);
@@ -470,6 +558,7 @@ export async function fetchRemotePosts({ currentUser, pageSize = 10, lastDoc = n
     privateDone,
   };
 
+  // Return posts with likes and comments enriched
   return { posts: results, lastDoc: newLastDoc, hasMore };
 }
 

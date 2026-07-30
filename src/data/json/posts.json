@@ -18,7 +18,10 @@
       "previewUsers": [
         { "id": "user-julia", "name": "Julia Stone", "initials": "J", "avatarColor": "#1890FF" },
         { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
-        { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" }
+        { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" },
+        { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" },
+        { "id": "user-radovan", "name": "Radovan SkillArena", "initials": "R", "avatarColor": "#FEA364" },
+        { "id": "user-sam", "name": "Sam Wilson", "initials": "S", "avatarColor": "#E74C3C" }
       ]
     },
     "comments": {
@@ -61,7 +64,11 @@
       "likedByCurrentUser": false,
       "previewUsers": [
         { "id": "user-julia", "name": "Julia Stone", "initials": "J", "avatarColor": "#1890FF" },
-        { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" }
+        { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
+        { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" },
+        { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" },
+        { "id": "user-radovan", "name": "Radovan SkillArena", "initials": "R", "avatarColor": "#FEA364" },
+        { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" }
       ]
     },
     "comments": {
@@ -88,7 +95,10 @@
       "previewUsers": [
         { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" },
         { "id": "user-radovan", "name": "Radovan SkillArena", "initials": "R", "avatarColor": "#FEA364" },
-        { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" }
+        { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
+        { "id": "user-julia", "name": "Julia Stone", "initials": "J", "avatarColor": "#1890FF" },
+        { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" },
+        { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" }
       ]
     },
     "comments": {
@@ -124,7 +134,10 @@
       "previewUsers": [
         { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" },
         { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" },
-        { "id": "user-radovan", "name": "Radovan SkillArena", "initials": "R", "avatarColor": "#FEA364" }
+        { "id": "user-radovan", "name": "Radovan SkillArena", "initials": "R", "avatarColor": "#FEA364" },
+        { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" },
+        { "id": "user-julia", "name": "Julia Stone", "initials": "J", "avatarColor": "#1890FF" },
+        { "id": "user-sam", "name": "Sam Wilson", "initials": "S", "avatarColor": "#E74C3C" }
       ]
     },
     "comments": {
@@ -167,7 +180,11 @@
       "likedByCurrentUser": false,
       "previewUsers": [
         { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" },
-        { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" }
+        { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" },
+        { "id": "user-radovan", "name": "Radovan SkillArena", "initials": "R", "avatarColor": "#FEA364" },
+        { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
+        { "id": "user-julia", "name": "Julia Stone", "initials": "J", "avatarColor": "#1890FF" },
+        { "id": "user-leo", "name": "Leo Chen", "initials": "L", "avatarColor": "#2ECC71" }
       ]
     },
     "comments": {
@@ -211,7 +228,11 @@
       "likedByCurrentUser": false,
       "previewUsers": [
         { "id": "user-julia", "name": "Julia Stone", "initials": "J", "avatarColor": "#1890FF" },
-        { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" }
+        { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
+        { "id": "user-radovan", "name": "Radovan SkillArena", "initials": "R", "avatarColor": "#FEA364" },
+        { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" },
+        { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" },
+        { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" }
       ]
     },
     "comments": {
@@ -236,7 +257,12 @@
       "count": 15,
       "likedByCurrentUser": false,
       "previewUsers": [
-        { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" }
+        { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" },
+        { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" },
+        { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" },
+        { "id": "user-radovan", "name": "Radovan SkillArena", "initials": "R", "avatarColor": "#FEA364" },
+        { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
+        { "id": "user-julia", "name": "Julia Stone", "initials": "J", "avatarColor": "#1890FF" }
       ]
     },
     "comments": {
@@ -263,7 +289,10 @@
       "previewUsers": [
         { "id": "user-radovan", "name": "Radovan SkillArena", "initials": "R", "avatarColor": "#FEA364" },
         { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
-        { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" }
+        { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" },
+        { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" },
+        { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" },
+        { "id": "user-julia", "name": "Julia Stone", "initials": "J", "avatarColor": "#1890FF" }
       ]
     },
     "comments": {
@@ -299,7 +328,10 @@
       "previewUsers": [
         { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" },
         { "id": "user-julia", "name": "Julia Stone", "initials": "J", "avatarColor": "#1890FF" },
-        { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" }
+        { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" },
+        { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" },
+        { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
+        { "id": "user-sam", "name": "Sam Wilson", "initials": "S", "avatarColor": "#E74C3C" }
       ]
     },
     "comments": {
@@ -342,7 +374,11 @@
       "likedByCurrentUser": false,
       "previewUsers": [
         { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
-        { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" }
+        { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" },
+        { "id": "user-julia", "name": "Julia Stone", "initials": "J", "avatarColor": "#1890FF" },
+        { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" },
+        { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" },
+        { "id": "user-nina", "name": "Nina Patel", "initials": "N", "avatarColor": "#F39C12" }
       ]
     },
     "comments": {

@@ -19,6 +19,7 @@ import {
 } from '../services/firestoreFeedService';
 import { uploadPostImage } from '../services/cloudinaryService';
 import { getImage } from '../utils/uploadImageStore';
+import { getRemotePostId } from '../utils/feedPostIdentity';
 
 const ACTION_LABELS = {
   CREATE_POST: { saving: 'Saving post...', done: 'Posted' },
@@ -96,7 +97,7 @@ export function useSyncQueueProcessor({ isOnline, setSyncStatusMessage, setPosts
 
             const currentPost = postsRef.current.find((post) => post.id === localPostId);
 
-            if (currentPost?.remoteId) {
+            if (getRemotePostId(currentPost)) {
               markSynced(item.id);
               break;
             }
@@ -230,7 +231,7 @@ export function useSyncQueueProcessor({ isOnline, setSyncStatusMessage, setPosts
 
             // Find the remote post ID — delay sync if post hasn't synced yet
             const commentHostPost = postsRef.current.find((p) => p.id === postId);
-            const commentRemotePostId = commentHostPost?.remoteId || null;
+            const commentRemotePostId = getRemotePostId(commentHostPost);
 
             if (!commentRemotePostId) {
               // Parent post not synced — retry on next pass
@@ -270,7 +271,7 @@ export function useSyncQueueProcessor({ isOnline, setSyncStatusMessage, setPosts
             const { postId, commentId, reply } = item.payload;
 
             const replyHostPost = postsRef.current.find((p) => p.id === postId);
-            const replyRemotePostId = replyHostPost?.remoteId || null;
+            const replyRemotePostId = getRemotePostId(replyHostPost);
             const replyHostComment = replyHostPost?.comments?.items?.find((c) => c.id === commentId);
             const replyRemoteCommentId = replyHostComment?.remoteId || null;
 
@@ -322,7 +323,7 @@ export function useSyncQueueProcessor({ isOnline, setSyncStatusMessage, setPosts
             const { postId, userId, liked } = item.payload;
 
             const togglePost = postsRef.current.find((p) => p.id === postId);
-            const togglePostRemoteId = togglePost?.remoteId || null;
+            const togglePostRemoteId = getRemotePostId(togglePost);
 
             if (togglePostRemoteId) {
               await withTimeout(
@@ -339,7 +340,7 @@ export function useSyncQueueProcessor({ isOnline, setSyncStatusMessage, setPosts
             const { postId, commentId, userId, liked } = item.payload;
 
             const toggleCommentPost = postsRef.current.find((p) => p.id === postId);
-            const toggleCommentRemotePostId = toggleCommentPost?.remoteId || null;
+            const toggleCommentRemotePostId = getRemotePostId(toggleCommentPost);
             const toggleComment = toggleCommentPost?.comments?.items?.find((c) => c.id === commentId);
             const toggleCommentRemoteCommentId = toggleComment?.remoteId || null;
 
@@ -363,7 +364,7 @@ export function useSyncQueueProcessor({ isOnline, setSyncStatusMessage, setPosts
             const { postId, commentId, replyId, userId, liked } = item.payload;
 
             const toggleReplyPost = postsRef.current.find((p) => p.id === postId);
-            const toggleReplyRemotePostId = toggleReplyPost?.remoteId || null;
+            const toggleReplyRemotePostId = getRemotePostId(toggleReplyPost);
             const toggleReplyComment = toggleReplyPost?.comments?.items?.find((c) => c.id === commentId);
             const toggleReplyRemoteCommentId = toggleReplyComment?.remoteId || null;
             const toggleReply = toggleReplyComment?.replies?.find((r) => r.id === replyId);
@@ -390,7 +391,7 @@ export function useSyncQueueProcessor({ isOnline, setSyncStatusMessage, setPosts
             const { postId, visibility } = item.payload;
 
             const privacyPost = postsRef.current.find((p) => p.id === postId);
-            const privacyRemotePostId = privacyPost?.remoteId || null;
+            const privacyRemotePostId = getRemotePostId(privacyPost);
 
             if (privacyRemotePostId) {
               await withTimeout(
