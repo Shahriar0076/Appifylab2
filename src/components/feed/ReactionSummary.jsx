@@ -1,8 +1,4 @@
-import { useState } from 'react';
-import { LikerPopover } from './LikerPopover';
-
-export function ReactionSummary({ postRemoteId, likes, commentCount, currentUser }) {
-  const [showLikers, setShowLikers] = useState(false);
+export function ReactionSummary({ likes, commentCount, currentUser }) {
   const basePreviewUsers = likes?.previewUsers || [];
   const hasCurrentUserPreview = currentUser?.id && basePreviewUsers.some((user) => user.id === currentUser.id);
   const allPreviewUsers = likes?.likedByCurrentUser && currentUser && !hasCurrentUserPreview
@@ -28,20 +24,10 @@ export function ReactionSummary({ postRemoteId, likes, commentCount, currentUser
               color: user.color || '#fff',
               zIndex: previewUsers.length - idx,
             }}
-            onClick={() => postRemoteId && setShowLikers((v) => !v)}
-            title="See who liked this"
           >
             {user.initials || user.name?.charAt(0).toUpperCase()}
           </div>
         ))}
-
-        {showLikers && postRemoteId && (
-          <LikerPopover
-            targetType="post"
-            targetId={postRemoteId}
-            onClose={() => setShowLikers(false)}
-          />
-        )}
       </div>
       <div className="_feed_inner_timeline_total_reacts_txt">
         <p className="_feed_inner_timeline_total_reacts_para1">

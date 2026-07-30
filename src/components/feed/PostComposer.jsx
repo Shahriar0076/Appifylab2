@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Avatar } from '../common/Avatar';
 import { PrivacyToggle } from './PrivacyToggle';
-import { PhotoIcon, PostSendIcon } from '../icons';
+import { PhotoIcon, PostSendIcon, PublicIcon, PrivateIcon } from '../icons';
 import { useObjectUrl } from '../../hooks/useObjectUrl';
 import { validateImageFile } from '../../utils/imageValidation';
 import { resizeImageToJpeg } from '../../utils/resizeImageToJpeg';
@@ -152,6 +152,46 @@ export function PostComposer({ currentUser, uiText, onPost }) {
           >
             <PostSendIcon className="_mar_img" /> <span>{uiText?.postButton || 'Post'}</span>
           </button>
+        </div>
+      </div>
+
+      {/* Mobile Bottom Bar */}
+      <div className="_feed_inner_text_area_bottom_mobile">
+        <div className="_feed_inner_text_mobile">
+          <div className="_feed_inner_text_area_bottom_photo _feed_common">
+            <button
+              type="button"
+              className="_feed_inner_text_area_bottom_photo_link"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isProcessing}
+              aria-label={uiText?.photoButton || 'Photo'}
+            >
+              <span className="_feed_inner_text_area_bottom_photo_iamge">
+                <PhotoIcon />
+              </span>
+            </button>
+          </div>
+          <div className="_feed_inner_text_area_bottom_event">
+            <button
+              type="button"
+              className="_feed_mobile_privacy_btn"
+              onClick={() => setPrivacy((p) => (p === 'public' ? 'private' : 'public'))}
+              aria-label={privacy === 'public' ? 'Set post to private' : 'Set post to public'}
+            >
+              {privacy === 'public' ? <PublicIcon width={14} height={14} /> : <PrivateIcon width={14} height={14} />}
+              <span>{privacy === 'public' ? 'Public' : 'Private'}</span>
+            </button>
+          </div>
+          <div className="_feed_inner_text_area_btn">
+            <button
+              type="button"
+              className="_feed_inner_text_area_btn_link"
+              onClick={handleSubmit}
+              disabled={isProcessing}
+            >
+              <PostSendIcon className="_mar_img" /> <span>{uiText?.postButton || 'Post'}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { Header } from '../components/feed/Header';
 import { PostComposer } from '../components/feed/PostComposer';
 import { FeedList } from '../components/feed/FeedList';
 import { FeedSkeleton } from '../components/feed/FeedSkeleton';
+import { LoadMoreSpinner } from '../components/feed/LoadMoreSpinner';
 import { PageShell } from '../components/common/PageShell';
 import { getCurrentUser } from '../services/userService';
 import { getUiText } from '../services/uiTextService';
@@ -20,10 +21,11 @@ export function FeedPage() {
   const {
     posts,
     isLoading,
-    isFetchingRemote,
     syncStatusMessage,
     isOnline,
     storageWarning,
+    hasMoreRemote,
+    isLoadingMore,
     createPost,
     togglePostLike,
     addComment,
@@ -32,6 +34,7 @@ export function FeedPage() {
     toggleReplyLike,
     updatePostPrivacy,
     fetchAndMergeRemotePosts,
+    loadMoreRemotePosts,
     retrySyncItem,
   } = useFeed();
   const { currentUser: authUser } = useAuth();
@@ -63,20 +66,35 @@ export function FeedPage() {
   const visiblePosts = posts.slice(0, visiblePostCount);
   const hasMorePosts = visiblePostCount < posts.length;
 
+  // IntersectionObserver: reveal more local posts when sentinel is visible
+  // The sentinel has a 1px min-height so IntersectionObserver reliably detects
+  // it (zero-height elements may report intersectionRatio = NaN, preventing
+  // the callback from firing). rootMargin: "200px" triggers loading before
+  // the user actually reaches the bottom.
   useEffect(() => {
     const loadMoreNode = loadMoreRef.current;
     if (!loadMoreNode || !hasMorePosts) return undefined;
 
-    const observer = new IntersectionObserver((entries) => {
-      if (entries[0]?.isIntersecting) {
-        setVisiblePostCount((count) => Math.min(count + POSTS_PER_PAGE, posts.length));
-      }
-    });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisiblePostCount((count) => Math.min(count + POSTS_PER_PAGE, posts.length));
+        }
+      },
+      { rootMargin: '200px' }
+    );
 
     observer.observe(loadMoreNode);
 
     return () => observer.disconnect();
   }, [hasMorePosts, posts.length]);
+
+  // Auto-load next remote page when local posts are exhausted
+  useEffect(() => {
+    if (!hasMorePosts && hasMoreRemote && currentUser && !isLoadingMore) {
+      loadMoreRemotePosts(currentUser);
+    }
+  }, [hasMorePosts, hasMoreRemote, isLoadingMore, currentUser, loadMoreRemotePosts]);
 
   const handlePost = useCallback(
     async ({ content, privacy, imageBlob }) => {
@@ -138,9 +156,12 @@ export function FeedPage() {
     );
   }
 
-  // ── User ready, posts still loading: show skeleton cards ──
-  // Wait for both local load AND Firestore remote fetch to complete
-  if (isLoading || isFetchingRemote) {
+  // ── User ready, initial posts loading: show skeleton cards ──
+  // Only show skeleton on initial load (isLoading). For background remote
+  // fetch (isFetchingRemote), show the feed with cached posts instead of
+  // replacing everything with a skeleton — this avoids flicker and keeps
+  // the IntersectionObserver sentinel connected.
+  if (isLoading) {
     return (
       <PageShell>
         <div className="_layout">
@@ -210,7 +231,14 @@ export function FeedPage() {
                         }
                         onRetrySync={retrySyncItem}
                       />
-                      {hasMorePosts && <div ref={loadMoreRef} aria-hidden="true" />}
+                      {hasMorePosts && (
+                        <div
+                          ref={loadMoreRef}
+                          aria-hidden="true"
+                          style={{ minHeight: '1px' }}
+                        />
+                      )}
+                      <LoadMoreSpinner isLoadingMore={isLoadingMore} hasMore={hasMorePosts || hasMoreRemote} />
                     </div>
                   </div>
                 </div>

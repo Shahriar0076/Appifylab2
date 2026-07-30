@@ -687,67 +687,6 @@ export async function toggleRemoteReplyLike({ postId, commentId, replyId, userId
 }
 
 // ---------------------------------------------------------------------------
-// "Who liked" queries
-// ---------------------------------------------------------------------------
-
-export async function getPostLikers(postId) {
-  const q = query(
-    collection(db, 'postLikes'),
-    where('postId', '==', postId),
-    orderBy('createdAt', 'desc'),
-    limit(20)
-  );
-  const snap = await getDocs(q);
-  const userIds = snap.docs.map((d) => d.data().userId);
-
-  const users = [];
-  for (const uid of userIds) {
-    const profile = await getUserSnapshot(uid);
-    if (profile) users.push(profile);
-  }
-
-  return users;
-}
-
-export async function getCommentLikers(commentId) {
-  const q = query(
-    collection(db, 'commentLikes'),
-    where('commentId', '==', commentId),
-    orderBy('createdAt', 'desc'),
-    limit(20)
-  );
-  const snap = await getDocs(q);
-  const userIds = snap.docs.map((d) => d.data().userId);
-
-  const users = [];
-  for (const uid of userIds) {
-    const profile = await getUserSnapshot(uid);
-    if (profile) users.push(profile);
-  }
-
-  return users;
-}
-
-export async function getReplyLikers(replyId) {
-  const q = query(
-    collection(db, 'replyLikes'),
-    where('replyId', '==', replyId),
-    orderBy('createdAt', 'desc'),
-    limit(20)
-  );
-  const snap = await getDocs(q);
-  const userIds = snap.docs.map((d) => d.data().userId);
-
-  const users = [];
-  for (const uid of userIds) {
-    const profile = await getUserSnapshot(uid);
-    if (profile) users.push(profile);
-  }
-
-  return users;
-}
-
-// ---------------------------------------------------------------------------
 // Update post privacy
 // ---------------------------------------------------------------------------
 

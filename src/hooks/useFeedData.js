@@ -8,8 +8,21 @@ import { fetchRemotePosts } from '../services/firestoreFeedService';
 import { toast } from '../utils/toast';
 
 const FEED_STORAGE_KEY = 'buddyScript.feed.posts';
+const FEED_STORAGE_VERSION = 2;
+const FEED_VERSION_KEY = 'buddyScript.feed.version';
 
 function readStoredPosts() {
+  // Version check: discard stored data if version is missing or old
+  const storedVersion = localStorage.getItem(FEED_VERSION_KEY);
+  if (storedVersion !== String(FEED_STORAGE_VERSION)) {
+    if (localStorage.getItem(FEED_STORAGE_KEY) !== null) {
+      backupCorrupted(FEED_STORAGE_KEY);
+    }
+    localStorage.removeItem(FEED_STORAGE_KEY);
+    localStorage.removeItem(FEED_VERSION_KEY);
+    return null;
+  }
+
   const parsed = safeReadArray(FEED_STORAGE_KEY, null);
   if (parsed) return parsed;
   if (localStorage.getItem(FEED_STORAGE_KEY) !== null) {
@@ -20,11 +33,20 @@ function readStoredPosts() {
 }
 
 function writeStoredPosts(posts) {
-  return safeWriteJson(FEED_STORAGE_KEY, posts);
+  const ok = safeWriteJson(FEED_STORAGE_KEY, posts);
+  if (ok) {
+    try {
+      localStorage.setItem(FEED_VERSION_KEY, String(FEED_STORAGE_VERSION));
+    } catch {
+      // Ignore version key write failure
+    }
+  }
+  return ok;
 }
 
 function clearStoredPosts() {
   safeRemove(FEED_STORAGE_KEY);
+  safeRemove(FEED_VERSION_KEY);
 }
 
 /**
@@ -37,6 +59,9 @@ export function useFeedData() {
   const [isFetchingRemote, setIsFetchingRemote] = useState(false);
   const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false);
   const [storageWarning, setStorageWarning] = useState('');
+  const [lastDoc, setLastDoc] = useState(null);
+  const [hasMoreRemote, setHasMoreRemote] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // ── Initial load: localStorage first, seed fallback ──
   useEffect(() => {
@@ -262,87 +287,125 @@ export function useFeedData() {
     };
   }
 
-  // ── Merge remote Firestore posts into local state ──
+  // ── Shared helper: merge remote posts result into current posts ──
+  function mergeRemotePostsIntoState(currentPosts, result, remoteCurrentUser) {
+    const merged = [...currentPosts];
+    const existingLocalIds = new Set(merged.map((p) => p.localId || p.id));
+    const existingRemoteIds = new Set(
+      merged.map((p) => p.remoteId).filter(Boolean)
+    );
+
+    for (const remotePost of result.posts) {
+      if (remotePost.remoteId && existingRemoteIds.has(remotePost.remoteId)) {
+        const idx = merged.findIndex(
+          (p) => p.remoteId === remotePost.remoteId
+        );
+        if (idx !== -1) {
+          merged[idx] = {
+            ...merged[idx],
+            ...remotePost,
+            comments: mergeComments(
+              merged[idx].comments,
+              remotePost.comments,
+              remoteCurrentUser?.id
+            ),
+            likes: mergeLikes(
+              { ...remotePost.likes, _postId: remotePost.id },
+              merged[idx].likes,
+              remoteCurrentUser?.id,
+              remoteCurrentUser
+            ),
+            localId: merged[idx].localId || merged[idx].id,
+          };
+        }
+        continue;
+      }
+
+      if (remotePost.localId && existingLocalIds.has(remotePost.localId)) {
+        const idx = merged.findIndex(
+          (p) => (p.localId || p.id) === remotePost.localId
+        );
+        if (idx !== -1) {
+          merged[idx] = {
+            ...merged[idx],
+            ...remotePost,
+            comments: mergeComments(
+              merged[idx].comments,
+              remotePost.comments,
+              remoteCurrentUser?.id
+            ),
+            likes: mergeLikes(
+              { ...remotePost.likes, _postId: remotePost.id },
+              merged[idx].likes,
+              remoteCurrentUser?.id,
+              remoteCurrentUser
+            ),
+            localId: merged[idx].localId || merged[idx].id,
+          };
+        }
+        continue;
+      }
+
+      merged.push(remotePost);
+    }
+
+    merged.sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+    return merged;
+  }
+
+  // ── Initial remote fetch (first page) ──
   const fetchAndMergeRemotePosts = useCallback(async (currentUser) => {
     if (!currentUser) return;
     setIsFetchingRemote(true);
     try {
-      const result = await fetchRemotePosts({ currentUser, pageSize: 20 });
-      if (result.posts.length === 0) return;
+      const result = await fetchRemotePosts({ currentUser, pageSize: 5 });
+      if (result.posts.length === 0) {
+        setHasMoreRemote(false);
+        return;
+      }
 
-      setPosts((currentPosts) => {
-        const merged = [...currentPosts];
-        const existingLocalIds = new Set(merged.map((p) => p.localId || p.id));
-        const existingRemoteIds = new Set(
-          merged.map((p) => p.remoteId).filter(Boolean)
-        );
+      setLastDoc(result.lastDoc);
+      setHasMoreRemote(result.hasMore);
 
-        for (const remotePost of result.posts) {
-          if (remotePost.remoteId && existingRemoteIds.has(remotePost.remoteId)) {
-            const idx = merged.findIndex(
-              (p) => p.remoteId === remotePost.remoteId
-            );
-            if (idx !== -1) {
-              merged[idx] = {
-                ...merged[idx],
-                ...remotePost,
-                comments: mergeComments(
-                  merged[idx].comments,
-                  remotePost.comments,
-                  currentUser?.id
-                ),
-                likes: mergeLikes(
-                  { ...remotePost.likes, _postId: remotePost.id },
-                  merged[idx].likes,
-                  currentUser?.id,
-                  currentUser
-                ),
-                localId: merged[idx].localId || merged[idx].id,
-              };
-            }
-            continue;
-          }
-
-          if (remotePost.localId && existingLocalIds.has(remotePost.localId)) {
-            const idx = merged.findIndex(
-              (p) => (p.localId || p.id) === remotePost.localId
-            );
-            if (idx !== -1) {
-              merged[idx] = {
-                ...merged[idx],
-                ...remotePost,
-                comments: mergeComments(
-                  merged[idx].comments,
-                  remotePost.comments,
-                  currentUser?.id
-                ),
-                likes: mergeLikes(
-                  { ...remotePost.likes, _postId: remotePost.id },
-                  merged[idx].likes,
-                  currentUser?.id,
-                  currentUser
-                ),
-                localId: merged[idx].localId || merged[idx].id,
-              };
-            }
-            continue;
-          }
-
-          merged.push(remotePost);
-        }
-
-        merged.sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-        );
-        return merged;
-      });
+      setPosts((currentPosts) =>
+        mergeRemotePostsIntoState(currentPosts, result, currentUser)
+      );
     } catch (err) {
       console.warn('Failed to fetch remote posts:', err);
       toast.warning('Could not fetch latest posts. Showing cached data.');
+      setHasMoreRemote(false);
     } finally {
       setIsFetchingRemote(false);
     }
   }, []);
+
+  // ── Load next page of remote posts (triggered by scroll) ──
+  const loadMoreRemotePosts = useCallback(async (currentUser) => {
+    if (!currentUser || !hasMoreRemote || !lastDoc || isLoadingMore) return;
+    setIsLoadingMore(true);
+    try {
+      const result = await fetchRemotePosts({ currentUser, pageSize: 5, lastDoc });
+
+      if (result.posts.length === 0) {
+        setHasMoreRemote(false);
+        return;
+      }
+
+      setLastDoc(result.lastDoc);
+      setHasMoreRemote(result.hasMore);
+
+      setPosts((currentPosts) =>
+        mergeRemotePostsIntoState(currentPosts, result, currentUser)
+      );
+    } catch (err) {
+      console.warn('Failed to load more remote posts:', err);
+      toast.warning('Could not load more posts.');
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [hasMoreRemote, lastDoc, isLoadingMore]);
 
   // ── Wipe local data and reload from seeds ──
   const resetFeed = useCallback(async () => {
@@ -361,8 +424,11 @@ export function useFeedData() {
     isFetchingRemote,
     hasLoadedFromStorage,
     storageWarning,
+    hasMoreRemote,
+    isLoadingMore,
     setPosts,
     fetchAndMergeRemotePosts,
+    loadMoreRemotePosts,
     resetFeed,
   };
 }

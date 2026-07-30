@@ -12,8 +12,11 @@ export function FeedProvider({ children }) {
     isLoading,
     isFetchingRemote,
     storageWarning,
+    hasMoreRemote,
+    isLoadingMore,
     setPosts,
     fetchAndMergeRemotePosts,
+    loadMoreRemotePosts,
     resetFeed,
   } = useFeedData();
 
@@ -32,8 +35,11 @@ export function FeedProvider({ children }) {
       syncStatusMessage,
       isOnline,
       storageWarning,
+      hasMoreRemote,
+      isLoadingMore,
       ...actions,
       fetchAndMergeRemotePosts,
+      loadMoreRemotePosts,
       resetFeed,
     }),
     [
@@ -43,8 +49,11 @@ export function FeedProvider({ children }) {
       syncStatusMessage,
       isOnline,
       storageWarning,
+      hasMoreRemote,
+      isLoadingMore,
       actions,
       fetchAndMergeRemotePosts,
+      loadMoreRemotePosts,
       resetFeed,
     ]
   );

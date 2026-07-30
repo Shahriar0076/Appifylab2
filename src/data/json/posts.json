@@ -10,31 +10,15 @@
     "createdAt": "2026-07-29T10:30:00Z",
     "displayTime": "5 minute ago",
     "visibility": "public",
-    "title": "-Healthy Tracking App",
+    "title": "Healthy Tracking App — just launched my new project!",
     "image": "timeline_img.png",
     "likes": {
       "count": 9,
       "likedByCurrentUser": false,
       "previewUsers": [
-        {
-          "id": "user-julia",
-          "name": "Julia Stone",
-          "initials": "J",
-          "avatarColor": "#1890FF"
-        },
-        {
-          "id": "user-maya",
-          "name": "Maya Redwood",
-          "initials": "M",
-          "avatarColor": "#845EF7"
-        },
-        {
-          "id": "user-ava",
-          "name": "Ava Brooks",
-          "initials": "A",
-          "avatarColor": "#FFD43B",
-          "color": "#333"
-        }
+        { "id": "user-julia", "name": "Julia Stone", "initials": "J", "avatarColor": "#1890FF" },
+        { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
+        { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" }
       ]
     },
     "comments": {
@@ -42,33 +26,17 @@
       "items": [
         {
           "id": "comment-1",
-          "author": {
-            "id": "user-radovan",
-            "name": "Radovan SkillArena",
-            "initials": "R",
-            "avatarColor": "#FEA364"
-          },
+          "author": { "id": "user-radovan", "name": "Radovan SkillArena", "initials": "R", "avatarColor": "#FEA364" },
           "text": "It is a long established fact that a reader will be distracted by the readable content of a page when looking at its layout.",
           "displayTime": "21m",
-          "likes": {
-            "count": 198,
-            "likedByCurrentUser": false
-          },
+          "likes": { "count": 198, "likedByCurrentUser": false },
           "replies": [
             {
               "id": "reply-1",
-              "author": {
-                "id": "user-maya",
-                "name": "Maya Redwood",
-                "initials": "M",
-                "avatarColor": "#845EF7"
-              },
+              "author": { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
               "text": "That's a great point! I totally agree with your perspective on the layout.",
               "displayTime": "15m",
-              "likes": {
-                "count": 24,
-                "likedByCurrentUser": false
-              }
+              "likes": { "count": 24, "likedByCurrentUser": false }
             }
           ]
         }
@@ -78,37 +46,317 @@
   {
     "id": "post-2",
     "author": {
-      "id": "user-karim",
-      "name": "Karim Saif",
-      "initials": "K",
-      "avatarColor": "#0ACF83"
+      "id": "user-dylan",
+      "name": "Dylan Field",
+      "initials": "D",
+      "avatarColor": "#1890FF"
     },
-    "createdAt": "2026-07-29T10:30:00Z",
-    "displayTime": "5 minute ago",
+    "createdAt": "2026-07-29T09:15:00Z",
+    "displayTime": "8 minute ago",
     "visibility": "private",
-    "title": "-Healthy Tracking App",
-    "image": "timeline_img.png",
+    "title": "Working on some UI improvements for the dashboard. Dark mode is coming!",
+    "image": null,
     "likes": {
       "count": 5,
       "likedByCurrentUser": false,
       "previewUsers": [
-        {
-          "id": "user-julia",
-          "name": "Julia Stone",
-          "initials": "J",
-          "avatarColor": "#1890FF"
-        },
-        {
-          "id": "user-maya",
-          "name": "Maya Redwood",
-          "initials": "M",
-          "avatarColor": "#845EF7"
-        }
+        { "id": "user-julia", "name": "Julia Stone", "initials": "J", "avatarColor": "#1890FF" },
+        { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" }
       ]
     },
     "comments": {
       "previousCount": 0,
       "items": []
+    }
+  },
+  {
+    "id": "post-3",
+    "author": {
+      "id": "user-julia",
+      "name": "Julia Stone",
+      "initials": "J",
+      "avatarColor": "#1890FF"
+    },
+    "createdAt": "2026-07-29T08:45:00Z",
+    "displayTime": "12 minute ago",
+    "visibility": "public",
+    "title": "Just finished reading 'Designing Data-Intensive Applications'. Mind-blowing insights on distributed systems!",
+    "image": null,
+    "likes": {
+      "count": 34,
+      "likedByCurrentUser": false,
+      "previewUsers": [
+        { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" },
+        { "id": "user-radovan", "name": "Radovan SkillArena", "initials": "R", "avatarColor": "#FEA364" },
+        { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" }
+      ]
+    },
+    "comments": {
+      "previousCount": 2,
+      "items": [
+        {
+          "id": "comment-3",
+          "author": { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
+          "text": "One of my favorite tech books! The chapter on replication was eye-opening.",
+          "displayTime": "18m",
+          "likes": { "count": 12, "likedByCurrentUser": false },
+          "replies": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "post-4",
+    "author": {
+      "id": "user-maya",
+      "name": "Maya Redwood",
+      "initials": "M",
+      "avatarColor": "#845EF7"
+    },
+    "createdAt": "2026-07-29T07:30:00Z",
+    "displayTime": "16 minute ago",
+    "visibility": "public",
+    "title": "Beautiful morning hike at Mount Rainier! Nature is the best therapy 🌲",
+    "image": "timeline_img.png",
+    "likes": {
+      "count": 56,
+      "likedByCurrentUser": false,
+      "previewUsers": [
+        { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" },
+        { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" },
+        { "id": "user-radovan", "name": "Radovan SkillArena", "initials": "R", "avatarColor": "#FEA364" }
+      ]
+    },
+    "comments": {
+      "previousCount": 1,
+      "items": [
+        {
+          "id": "comment-4",
+          "author": { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" },
+          "text": "Stunning view! Which trail did you take?",
+          "displayTime": "14m",
+          "likes": { "count": 8, "likedByCurrentUser": false },
+          "replies": [
+            {
+              "id": "reply-4",
+              "author": { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
+              "text": "Skyline Trail — highly recommended!",
+              "displayTime": "12m",
+              "likes": { "count": 15, "likedByCurrentUser": false }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "post-5",
+    "author": {
+      "id": "user-radovan",
+      "name": "Radovan SkillArena",
+      "initials": "R",
+      "avatarColor": "#FEA364"
+    },
+    "createdAt": "2026-07-29T06:20:00Z",
+    "displayTime": "22 minute ago",
+    "visibility": "public",
+    "title": "React 19 is looking amazing! Server Components + improved hooks make building complex UIs so much cleaner.",
+    "image": null,
+    "likes": {
+      "count": 78,
+      "likedByCurrentUser": false,
+      "previewUsers": [
+        { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" },
+        { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" }
+      ]
+    },
+    "comments": {
+      "previousCount": 3,
+      "items": [
+        {
+          "id": "comment-5",
+          "author": { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" },
+          "text": "The new use() hook is a game changer for data fetching patterns!",
+          "displayTime": "20m",
+          "likes": { "count": 45, "likedByCurrentUser": false },
+          "replies": [
+            {
+              "id": "reply-5a",
+              "author": { "id": "user-radovan", "name": "Radovan SkillArena", "initials": "R", "avatarColor": "#FEA364" },
+              "text": "Absolutely! Combined with Suspense it feels like a whole new paradigm.",
+              "displayTime": "18m",
+              "likes": { "count": 31, "likedByCurrentUser": false }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "post-6",
+    "author": {
+      "id": "user-ava",
+      "name": "Ava Brooks",
+      "initials": "A",
+      "avatarColor": "#FFD43B",
+      "color": "#333"
+    },
+    "createdAt": "2026-07-29T05:00:00Z",
+    "displayTime": "28 minute ago",
+    "visibility": "public",
+    "title": "Just published my first open-source package! A lightweight state management library for React. Check it out!",
+    "image": null,
+    "likes": {
+      "count": 42,
+      "likedByCurrentUser": false,
+      "previewUsers": [
+        { "id": "user-julia", "name": "Julia Stone", "initials": "J", "avatarColor": "#1890FF" },
+        { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" }
+      ]
+    },
+    "comments": {
+      "previousCount": 0,
+      "items": []
+    }
+  },
+  {
+    "id": "post-7",
+    "author": {
+      "id": "user-karim",
+      "name": "Karim Saif",
+      "initials": "K",
+      "avatarColor": "#0ACF83"
+    },
+    "createdAt": "2026-07-28T22:00:00Z",
+    "displayTime": "1 hour ago",
+    "visibility": "private",
+    "title": "Late night coding session. The new authentication flow is finally working end-to-end!",
+    "image": null,
+    "likes": {
+      "count": 15,
+      "likedByCurrentUser": false,
+      "previewUsers": [
+        { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" }
+      ]
+    },
+    "comments": {
+      "previousCount": 0,
+      "items": []
+    }
+  },
+  {
+    "id": "post-8",
+    "author": {
+      "id": "user-julia",
+      "name": "Julia Stone",
+      "initials": "J",
+      "avatarColor": "#1890FF"
+    },
+    "createdAt": "2026-07-28T20:30:00Z",
+    "displayTime": "2 hour ago",
+    "visibility": "public",
+    "title": "Our team just won the hackathon! 48 hours of pure coding, pizza, and teamwork. So proud! 🏆",
+    "image": "timeline_img.png",
+    "likes": {
+      "count": 120,
+      "likedByCurrentUser": false,
+      "previewUsers": [
+        { "id": "user-radovan", "name": "Radovan SkillArena", "initials": "R", "avatarColor": "#FEA364" },
+        { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
+        { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" }
+      ]
+    },
+    "comments": {
+      "previousCount": 5,
+      "items": [
+        {
+          "id": "comment-8",
+          "author": { "id": "user-dylan", "name": "Dylan Field", "initials": "D", "avatarColor": "#1890FF" },
+          "text": "Congratulations! Your project was absolutely brilliant!",
+          "displayTime": "1h",
+          "likes": { "count": 67, "likedByCurrentUser": false },
+          "replies": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "post-9",
+    "author": {
+      "id": "user-maya",
+      "name": "Maya Redwood",
+      "initials": "M",
+      "avatarColor": "#845EF7"
+    },
+    "createdAt": "2026-07-28T18:00:00Z",
+    "displayTime": "3 hour ago",
+    "visibility": "public",
+    "title": "Tips for new developers: Don't be afraid to break things. Every bug fixed is a lesson learned! 💻",
+    "image": null,
+    "likes": {
+      "count": 89,
+      "likedByCurrentUser": false,
+      "previewUsers": [
+        { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" },
+        { "id": "user-julia", "name": "Julia Stone", "initials": "J", "avatarColor": "#1890FF" },
+        { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" }
+      ]
+    },
+    "comments": {
+      "previousCount": 7,
+      "items": [
+        {
+          "id": "comment-9",
+          "author": { "id": "user-radovan", "name": "Radovan SkillArena", "initials": "R", "avatarColor": "#FEA364" },
+          "text": "Wish someone told me this when I started! Embrace the struggle.",
+          "displayTime": "2h",
+          "likes": { "count": 33, "likedByCurrentUser": false },
+          "replies": [
+            {
+              "id": "reply-9",
+              "author": { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
+              "text": "Exactly! The struggle is where the growth happens.",
+              "displayTime": "1h",
+              "likes": { "count": 19, "likedByCurrentUser": false }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "post-10",
+    "author": {
+      "id": "user-dylan",
+      "name": "Dylan Field",
+      "initials": "D",
+      "avatarColor": "#1890FF"
+    },
+    "createdAt": "2026-07-28T15:00:00Z",
+    "displayTime": "5 hour ago",
+    "visibility": "public",
+    "title": "Exploring the new CSS container queries. Finally, true component-level responsive design!",
+    "image": null,
+    "likes": {
+      "count": 61,
+      "likedByCurrentUser": false,
+      "previewUsers": [
+        { "id": "user-maya", "name": "Maya Redwood", "initials": "M", "avatarColor": "#845EF7" },
+        { "id": "user-ava", "name": "Ava Brooks", "initials": "A", "avatarColor": "#FFD43B", "color": "#333" }
+      ]
+    },
+    "comments": {
+      "previousCount": 1,
+      "items": [
+        {
+          "id": "comment-10",
+          "author": { "id": "user-karim", "name": "Karim Saif", "initials": "K", "avatarColor": "#0ACF83" },
+          "text": "Container queries are a game changer for design systems! Pair them with :has() selector for magic.",
+          "displayTime": "4h",
+          "likes": { "count": 27, "likedByCurrentUser": false },
+          "replies": []
+        }
+      ]
     }
   }
 ]
