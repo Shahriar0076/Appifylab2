@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Header } from '../components/feed/Header';
 import { PostComposer } from '../components/feed/PostComposer';
 import { FeedList } from '../components/feed/FeedList';
 import { FeedSkeleton } from '../components/feed/FeedSkeleton';
 import { LoadMoreSpinner } from '../components/feed/LoadMoreSpinner';
 import { PageShell } from '../components/common/PageShell';
-import { getCurrentUser } from '../services/userService';
 import { getUiText } from '../services/uiTextService';
 import { toast } from '../utils/toast';
 import { useFeed } from '../context/FeedContext';
@@ -16,7 +15,6 @@ const POSTS_PER_PAGE = 5;
 export function FeedPage() {
   const [uiText, setUiText] = useState({});
   const [visiblePostCount, setVisiblePostCount] = useState(POSTS_PER_PAGE);
-  const [currentUser, setCurrentUser] = useState(null);
   const loadMoreRef = useRef(null);
   const {
     posts,
@@ -37,25 +35,17 @@ export function FeedPage() {
     loadMoreRemotePosts,
     retrySyncItem,
   } = useFeed();
-  const { currentUser: authUser } = useAuth();
-
-  useEffect(() => {
-    if (authUser) {
-      setCurrentUser(authUser);
-    } else {
-      getCurrentUser().then(setCurrentUser);
-    }
-  }, [authUser]);
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     getUiText().then(setUiText);
   }, []);
 
   useEffect(() => {
-    if (authUser && currentUser) {
-      fetchAndMergeRemotePosts(authUser || currentUser);
+    if (currentUser) {
+      fetchAndMergeRemotePosts(currentUser);
     }
-  }, [authUser, currentUser, fetchAndMergeRemotePosts]);
+  }, [currentUser, fetchAndMergeRemotePosts]);
 
   useEffect(() => {
     setVisiblePostCount((count) =>
@@ -63,34 +53,49 @@ export function FeedPage() {
     );
   }, [posts.length]);
 
-  const visiblePosts = posts.slice(0, visiblePostCount);
-  const hasMorePosts = visiblePostCount < posts.length;
+  const orderedPosts = useMemo(
+    () =>
+      [...posts].sort((a, b) => {
+        const aTime = Date.parse(a.createdAt) || 0;
+        const bTime = Date.parse(b.createdAt) || 0;
+        return bTime - aTime;
+      }),
+    [posts]
+  );
+  const visiblePosts = orderedPosts.slice(0, visiblePostCount);
+  const hasMorePosts = visiblePostCount < orderedPosts.length;
 
-  // Reveal more local posts when sentinel is visible (200px offset)
+  // Reveal cached posts or fetch another remote page near the viewport bottom.
   useEffect(() => {
     const loadMoreNode = loadMoreRef.current;
-    if (!loadMoreNode || !hasMorePosts) return undefined;
+    if (!loadMoreNode || (!hasMorePosts && !hasMoreRemote)) return undefined;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setVisiblePostCount((count) => Math.min(count + POSTS_PER_PAGE, posts.length));
+        if (!entries[0]?.isIntersecting) return;
+
+        if (hasMorePosts) {
+          setVisiblePostCount((count) =>
+            Math.min(count + POSTS_PER_PAGE, orderedPosts.length)
+          );
+        } else if (currentUser && hasMoreRemote && !isLoadingMore) {
+          loadMoreRemotePosts(currentUser);
         }
       },
-      { rootMargin: '200px' }
+      { rootMargin: '400px 0px' }
     );
 
     observer.observe(loadMoreNode);
 
     return () => observer.disconnect();
-  }, [hasMorePosts, posts.length]);
-
-  // Auto-load next remote page when local posts are exhausted
-  useEffect(() => {
-    if (!hasMorePosts && hasMoreRemote && currentUser && !isLoadingMore) {
-      loadMoreRemotePosts(currentUser);
-    }
-  }, [hasMorePosts, hasMoreRemote, isLoadingMore, currentUser, loadMoreRemotePosts]);
+  }, [
+    hasMorePosts,
+    hasMoreRemote,
+    isLoadingMore,
+    currentUser,
+    orderedPosts.length,
+    loadMoreRemotePosts,
+  ]);
 
   const handlePost = useCallback(
     async ({ content, privacy, imageBlob }) => {
@@ -224,7 +229,7 @@ export function FeedPage() {
                         }
                         onRetrySync={retrySyncItem}
                       />
-                      {hasMorePosts && (
+                      {(hasMorePosts || hasMoreRemote) && (
                         <div
                           ref={loadMoreRef}
                           aria-hidden="true"

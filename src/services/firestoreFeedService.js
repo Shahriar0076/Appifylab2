@@ -388,34 +388,40 @@ export async function fetchRemotePosts({ currentUser, pageSize = 10, lastDoc = n
   let results = [];
 
   // 1. Fetch public posts
-  const publicConstraints = [
-    where('visibility', '==', 'public'),
-    orderBy('createdAt', 'desc'),
-    limit(pageSize),
-  ];
-  if (lastDoc) {
-    publicConstraints.push(startAfter(lastDoc.publicLastDoc));
+  let publicDocs = [];
+  if (!lastDoc?.publicDone) {
+    const publicConstraints = [
+      where('visibility', '==', 'public'),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize),
+    ];
+    if (lastDoc?.publicLastDoc) {
+      publicConstraints.push(startAfter(lastDoc.publicLastDoc));
+    }
+    const publicQuery = query(collection(db, 'posts'), ...publicConstraints);
+    publicDocs = (await getDocs(publicQuery)).docs;
   }
-  const publicQuery = query(collection(db, 'posts'), ...publicConstraints);
-  const publicSnap = await getDocs(publicQuery);
 
   // 2. Fetch current user's private posts
-  const privateConstraints = [
-    where('userId', '==', uid),
-    where('visibility', '==', 'private'),
-    orderBy('createdAt', 'desc'),
-    limit(pageSize),
-  ];
-  if (lastDoc) {
-    privateConstraints.push(startAfter(lastDoc.privateLastDoc));
+  let privateDocs = [];
+  if (!lastDoc?.privateDone) {
+    const privateConstraints = [
+      where('userId', '==', uid),
+      where('visibility', '==', 'private'),
+      orderBy('createdAt', 'desc'),
+      limit(pageSize),
+    ];
+    if (lastDoc?.privateLastDoc) {
+      privateConstraints.push(startAfter(lastDoc.privateLastDoc));
+    }
+    const privateQuery = query(collection(db, 'posts'), ...privateConstraints);
+    privateDocs = (await getDocs(privateQuery)).docs;
   }
-  const privateQuery = query(collection(db, 'posts'), ...privateConstraints);
-  const privateSnap = await getDocs(privateQuery);
 
   // 3. Merge results
   const postMap = new Map();
 
-  for (const snap of [...publicSnap.docs, ...privateSnap.docs]) {
+  for (const snap of [...publicDocs, ...privateDocs]) {
     if (!postMap.has(snap.id)) {
       const userId = snap.data().userId;
       const authorProfile = await getUserSnapshot(userId);
@@ -452,10 +458,16 @@ export async function fetchRemotePosts({ currentUser, pageSize = 10, lastDoc = n
   results = Array.from(postMap.values());
   results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-  const hasMore = publicSnap.docs.length === pageSize || privateSnap.docs.length === pageSize;
+  const publicDone = lastDoc?.publicDone || publicDocs.length < pageSize;
+  const privateDone = lastDoc?.privateDone || privateDocs.length < pageSize;
+  const hasMore = !publicDone || !privateDone;
   const newLastDoc = {
-    publicLastDoc: publicSnap.docs[publicSnap.docs.length - 1] || null,
-    privateLastDoc: privateSnap.docs[privateSnap.docs.length - 1] || null,
+    publicLastDoc:
+      publicDocs[publicDocs.length - 1] || lastDoc?.publicLastDoc || null,
+    privateLastDoc:
+      privateDocs[privateDocs.length - 1] || lastDoc?.privateLastDoc || null,
+    publicDone,
+    privateDone,
   };
 
   return { posts: results, lastDoc: newLastDoc, hasMore };

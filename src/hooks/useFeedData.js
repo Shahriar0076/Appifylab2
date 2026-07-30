@@ -1,42 +1,59 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getPosts } from '../services/postService';
 import { clearAllImages } from '../utils/uploadImageStore';
 import { safeReadArray, safeWriteJson, safeRemove, backupCorrupted } from '../utils/storage';
-import { normalizeSeedPosts } from '../utils/feedFactories';
 import { readQueue } from '../services/syncQueueService';
 import { fetchRemotePosts } from '../services/firestoreFeedService';
 import { toast } from '../utils/toast';
 
-const FEED_STORAGE_KEY = 'buddyScript.feed.posts';
-const FEED_STORAGE_VERSION = 2;
-const FEED_VERSION_KEY = 'buddyScript.feed.version';
+const FEED_STORAGE_VERSION = 3;
+const EMPTY_POSTS = [];
 
-function readStoredPosts() {
+function getStorageKeys(userId) {
+  const suffix = encodeURIComponent(userId);
+  return {
+    posts: `buddyScript.feed.posts.${suffix}`,
+    version: `buddyScript.feed.version.${suffix}`,
+  };
+}
+
+function sortNewestFirst(posts) {
+  if (!Array.isArray(posts)) return [];
+
+  return [...posts].sort((a, b) => {
+    const aTime = Date.parse(a.createdAt) || 0;
+    const bTime = Date.parse(b.createdAt) || 0;
+    return bTime - aTime;
+  });
+}
+
+function readStoredPosts(userId) {
+  const keys = getStorageKeys(userId);
   // Version check: discard stored data if version is missing or old
-  const storedVersion = localStorage.getItem(FEED_VERSION_KEY);
+  const storedVersion = localStorage.getItem(keys.version);
   if (storedVersion !== String(FEED_STORAGE_VERSION)) {
-    if (localStorage.getItem(FEED_STORAGE_KEY) !== null) {
-      backupCorrupted(FEED_STORAGE_KEY);
+    if (localStorage.getItem(keys.posts) !== null) {
+      backupCorrupted(keys.posts);
     }
-    localStorage.removeItem(FEED_STORAGE_KEY);
-    localStorage.removeItem(FEED_VERSION_KEY);
+    localStorage.removeItem(keys.posts);
+    localStorage.removeItem(keys.version);
     return null;
   }
 
-  const parsed = safeReadArray(FEED_STORAGE_KEY, null);
-  if (parsed) return parsed;
-  if (localStorage.getItem(FEED_STORAGE_KEY) !== null) {
-    backupCorrupted(FEED_STORAGE_KEY);
-    console.warn('Corrupted feed data in localStorage, falling back to seed.');
+  const parsed = safeReadArray(keys.posts, null);
+  if (parsed) return sortNewestFirst(parsed);
+  if (localStorage.getItem(keys.posts) !== null) {
+    backupCorrupted(keys.posts);
+    console.warn('Corrupted cached feed data; loading posts from the server.');
   }
   return null;
 }
 
-function writeStoredPosts(posts) {
-  const ok = safeWriteJson(FEED_STORAGE_KEY, posts);
+function writeStoredPosts(userId, posts) {
+  const keys = getStorageKeys(userId);
+  const ok = safeWriteJson(keys.posts, sortNewestFirst(posts));
   if (ok) {
     try {
-      localStorage.setItem(FEED_VERSION_KEY, String(FEED_STORAGE_VERSION));
+      localStorage.setItem(keys.version, String(FEED_STORAGE_VERSION));
     } catch {
       // Ignore version key write failure
     }
@@ -44,17 +61,35 @@ function writeStoredPosts(posts) {
   return ok;
 }
 
-function clearStoredPosts() {
-  safeRemove(FEED_STORAGE_KEY);
-  safeRemove(FEED_VERSION_KEY);
+function clearStoredPosts(userId) {
+  const keys = getStorageKeys(userId);
+  safeRemove(keys.posts);
+  safeRemove(keys.version);
 }
 
 /**
- * Manages posts state: loading from localStorage or seed data, persisting
+ * Manages posts state: loading the current user's cache, persisting
  * changes, merging remote Firestore posts, and feed reset.
  */
-export function useFeedData() {
-  const [posts, setPosts] = useState([]);
+export function useFeedData(userId) {
+  const [postsState, setPostsState] = useState([]);
+  const posts = Array.isArray(postsState) ? postsState : EMPTY_POSTS;
+  const setPosts = useCallback((nextPosts) => {
+    setPostsState((currentPosts) => {
+      const safeCurrentPosts = Array.isArray(currentPosts) ? currentPosts : [];
+      const resolvedPosts =
+        typeof nextPosts === 'function'
+          ? nextPosts(safeCurrentPosts)
+          : nextPosts;
+
+      if (!Array.isArray(resolvedPosts)) {
+        console.error('Ignored an invalid feed state update; expected an array.');
+        return safeCurrentPosts;
+      }
+
+      return resolvedPosts;
+    });
+  }, []);
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingRemote, setIsFetchingRemote] = useState(false);
   const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false);
@@ -63,12 +98,13 @@ export function useFeedData() {
   const [hasMoreRemote, setHasMoreRemote] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // ── Initial load: localStorage first, seed fallback ──
+  // ── Initial load: current account's cache only ──
   useEffect(() => {
     let isMounted = true;
 
-    async function loadPosts() {
-      const storedPosts = readStoredPosts();
+    function loadPosts() {
+      if (!userId) return;
+      const storedPosts = readStoredPosts(userId);
 
       if (storedPosts) {
         if (isMounted) {
@@ -97,17 +133,10 @@ export function useFeedData() {
         return;
       }
 
-      const seedPosts = await getPosts();
-      const seeded = normalizeSeedPosts(seedPosts);
       if (isMounted) {
-        const hadCorruptedData =
-          localStorage.getItem(FEED_STORAGE_KEY) !== null;
-        setPosts(seeded);
+        setPosts([]);
         setHasLoadedFromStorage(true);
         setIsLoading(false);
-        if (hadCorruptedData) {
-          toast.info('Local feed data was reset. Loading default feed...');
-        }
       }
     }
 
@@ -115,19 +144,20 @@ export function useFeedData() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [userId, setPosts]);
 
   // ── Persist every state change to localStorage ──
   useEffect(() => {
     if (!hasLoadedFromStorage || isLoading) return;
-    const ok = writeStoredPosts(posts);
+    if (!userId) return;
+    const ok = writeStoredPosts(userId, posts);
     if (!ok) {
       setStorageWarning('Changes may not persist after refresh (localStorage full).');
       toast.warning(
         'Storage nearly full — changes may not persist after refresh.'
       );
     }
-  }, [hasLoadedFromStorage, isLoading, posts]);
+  }, [hasLoadedFromStorage, isLoading, posts, userId]);
 
 
   /**
@@ -342,10 +372,7 @@ export function useFeedData() {
       merged.push(remotePost);
     }
 
-    merged.sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-    );
-    return merged;
+    return sortNewestFirst(merged);
   }
 
   // ── Initial remote fetch (first page) ──
@@ -372,7 +399,7 @@ export function useFeedData() {
     } finally {
       setIsFetchingRemote(false);
     }
-  }, []);
+  }, [setPosts]);
 
   // ── Load next page of remote posts (triggered by scroll) ──
   const loadMoreRemotePosts = useCallback(async (currentUser) => {
@@ -398,18 +425,17 @@ export function useFeedData() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [hasMoreRemote, lastDoc, isLoadingMore]);
+  }, [hasMoreRemote, lastDoc, isLoadingMore, setPosts]);
 
-  // ── Wipe local data and reload from seeds ──
-  const resetFeed = useCallback(async () => {
-    clearStoredPosts();
+  // ── Wipe the current account's local feed cache ──
+  const resetFeed = useCallback(() => {
+    if (!userId) return;
+    clearStoredPosts(userId);
     clearAllImages();
-    setIsLoading(true);
-    const seedPosts = await getPosts();
-    const seeded = normalizeSeedPosts(seedPosts);
-    setPosts(seeded);
-    setIsLoading(false);
-  }, []);
+    setPosts([]);
+    setLastDoc(null);
+    setHasMoreRemote(false);
+  }, [userId, setPosts]);
 
   return {
     posts,

@@ -3,10 +3,12 @@ import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useSyncQueueProcessor } from '../hooks/useSyncQueueProcessor';
 import { useFeedData } from '../hooks/useFeedData';
 import { useFeedActions } from '../hooks/useFeedActions';
+import { useAuth } from './AuthContext';
 
 const FeedContext = createContext(null);
 
 export function FeedProvider({ children }) {
+  const { currentUser } = useAuth();
   const {
     posts,
     isLoading,
@@ -18,7 +20,7 @@ export function FeedProvider({ children }) {
     fetchAndMergeRemotePosts,
     loadMoreRemotePosts,
     resetFeed,
-  } = useFeedData();
+  } = useFeedData(currentUser?.id);
 
   const { isOnline } = useOnlineStatus();
   const [syncStatusMessage, setSyncStatusMessage] = useState('');
