@@ -165,34 +165,6 @@ export function FeedPage() {
     );
   }
 
-  // ── User ready, initial posts loading: show skeleton cards ──
-  // Keep cached posts visible while refreshing, but show skeleton cards until
-  // the first remote page arrives when there is no cached feed to display.
-  if (showFeedSkeleton) {
-    return (
-      <PageShell>
-        <div className="_layout">
-          <div className="_main_layout">
-            <Header currentUser={currentUser} />
-            <div className="container _custom_container">
-              <div className="_layout_inner_wrap">
-                <div className="row">
-                  <div className="col-xl-12 col-lg-12 col-md-12 col-sm-12">
-                    <div className="_layout_middle_wrap">
-                      <div className="_layout_middle_inner">
-                        <FeedSkeleton count={3} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </PageShell>
-    );
-  }
-
   return (
     <PageShell>
       <div className="_layout">
@@ -224,28 +196,37 @@ export function FeedPage() {
                         uiText={uiText?.feed || {}}
                         onPost={handlePost}
                       />
-                      <FeedList
-                        posts={visiblePosts}
-                        currentUser={currentUser}
-                        uiText={uiText?.feed || {}}
-                        onLikePost={handleLikePost}
-                        onAddComment={handleAddComment}
-                        onAddReply={handleAddReply}
-                        onLikeComment={handleLikeComment}
-                        onLikeReply={handleLikeReply}
-                        onUpdatePrivacy={(postId, visibility) =>
-                          updatePostPrivacy(postId, visibility, currentUser)
-                        }
-                        onRetrySync={retrySyncItem}
-                      />
-                      {(hasMorePosts || hasMoreRemote) && (
+                      {showFeedSkeleton ? (
+                        <FeedSkeleton count={3} />
+                      ) : (
+                        <FeedList
+                          posts={visiblePosts}
+                          currentUser={currentUser}
+                          uiText={uiText?.feed || {}}
+                          onLikePost={handleLikePost}
+                          onAddComment={handleAddComment}
+                          onAddReply={handleAddReply}
+                          onLikeComment={handleLikeComment}
+                          onLikeReply={handleLikeReply}
+                          onUpdatePrivacy={(postId, visibility) =>
+                            updatePostPrivacy(postId, visibility, currentUser)
+                          }
+                          onRetrySync={retrySyncItem}
+                        />
+                      )}
+                      {!showFeedSkeleton && (hasMorePosts || hasMoreRemote) && (
                         <div
                           ref={loadMoreRef}
                           aria-hidden="true"
                           style={{ minHeight: '1px' }}
                         />
                       )}
-                      <LoadMoreSpinner isLoadingMore={isLoadingMore} hasMore={hasMorePosts || hasMoreRemote} />
+                      {!showFeedSkeleton && (
+                        <LoadMoreSpinner
+                          isLoadingMore={isLoadingMore}
+                          hasMore={hasMorePosts || hasMoreRemote}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>

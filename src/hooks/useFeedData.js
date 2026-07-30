@@ -8,6 +8,7 @@ import {
 } from '../utils/storage';
 import { readQueue } from '../services/syncQueueService';
 import {
+  fetchInitialRemotePosts,
   fetchRemotePostComments,
   fetchRemotePosts,
   subscribeToPostLikes,
@@ -429,11 +430,7 @@ export function useFeedData(userId) {
     if (!currentUser) return;
     setIsFetchingRemote(true);
     try {
-      const result = await fetchRemotePosts({
-        currentUser,
-        pageSize: 10,
-        includeEngagement: false,
-      });
+      const result = await fetchInitialRemotePosts({ currentUser });
       if (result.posts.length === 0) {
         setHasMoreRemote(false);
         return;

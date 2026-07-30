@@ -564,6 +564,69 @@ export async function fetchRemotePostComments({ posts, currentUser }) {
 // Fetch remote posts with pagination
 // ---------------------------------------------------------------------------
 
+export const INITIAL_REMOTE_POST_PAGE_SIZE = 4;
+
+const INITIAL_REMOTE_POST_CACHE_TTL_MS = 30_000;
+const initialRemotePostRequests = new Map();
+
+function getOrCreateInitialRemotePostRequest(currentUser) {
+  if (!currentUser?.id) {
+    return Promise.resolve({
+      posts: [],
+      lastDoc: null,
+      hasMore: false,
+      engagementLoaded: false,
+    });
+  }
+
+  const uid = currentUser.id;
+  const existingRequest = initialRemotePostRequests.get(uid);
+  if (
+    existingRequest &&
+    Date.now() - existingRequest.startedAt < INITIAL_REMOTE_POST_CACHE_TTL_MS
+  ) {
+    return existingRequest.promise;
+  }
+
+  const request = {
+    startedAt: Date.now(),
+    promise: fetchRemotePosts({
+      currentUser,
+      pageSize: INITIAL_REMOTE_POST_PAGE_SIZE,
+      includeEngagement: false,
+    }),
+  };
+
+  initialRemotePostRequests.set(uid, request);
+
+  // A failed preload must not prevent the feed from retrying normally.
+  void request.promise.catch(() => {
+    if (initialRemotePostRequests.get(uid) === request) {
+      initialRemotePostRequests.delete(uid);
+    }
+  });
+
+  setTimeout(() => {
+    if (initialRemotePostRequests.get(uid) === request) {
+      initialRemotePostRequests.delete(uid);
+    }
+  }, INITIAL_REMOTE_POST_CACHE_TTL_MS);
+
+  return request.promise;
+}
+
+/**
+ * Starts the first feed request as soon as authentication succeeds. The feed
+ * consumes the same promise after navigation, avoiding a duplicate request.
+ */
+export function preloadInitialRemotePosts(userId) {
+  return getOrCreateInitialRemotePostRequest({ id: userId });
+}
+
+export function fetchInitialRemotePosts({ currentUser }) {
+  return getOrCreateInitialRemotePostRequest(currentUser);
+}
+
 /**
  * Fetch remote posts with pagination.
  * Merges public posts + current user's private posts sorted newest-first.

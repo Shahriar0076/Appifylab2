@@ -63,8 +63,18 @@ export function useAuthPage({ variant, validate, submit, mapValues }) {
 
       try {
         const submitValues = mapValues ? mapValues(formValues) : formValues;
-        await submit(submitValues);
-        import('../app/FeedRoute');
+        const authenticatedUser = await submit(submitValues);
+        void import('../app/FeedRoute');
+        if (authenticatedUser?.uid) {
+          void import('../services/firestoreFeedService')
+            .then(({ preloadInitialRemotePosts }) =>
+              preloadInitialRemotePosts(authenticatedUser.uid)
+            )
+            .catch((error) => {
+              // Navigation should still succeed; the feed will retry the request.
+              console.warn('Initial feed preload failed:', error);
+            });
+        }
         toast.success(
           variant === 'login'
             ? 'Welcome back! Redirecting to your feed...'
@@ -79,7 +89,7 @@ export function useAuthPage({ variant, validate, submit, mapValues }) {
         setIsSubmitting(false);
       }
     },
-    [validate, submit, mapValues, navigate]
+    [validate, submit, mapValues, navigate, variant]
   );
 
   return {
