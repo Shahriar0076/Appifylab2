@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { subscribeToAuth, getUserProfile } from '../services/authService';
+import { subscribeToAuth, getUserProfile, logoutUser } from '../services/authService';
 import { toast } from '../utils/toast';
 
 const AuthContext = createContext(null);
@@ -45,9 +45,21 @@ export function AuthProvider({ children }) {
         } catch (err) {
           if (authEvent !== latestAuthEvent) return;
           console.error('Failed to load user profile:', err);
-          toast.error('Failed to load your profile. Some features may be limited.');
-          setAuthError('Failed to load user profile.');
-          setCurrentUser(null);
+
+          if (err.message === 'User profile was not found.') {
+            toast.error('Your account profile was not found. You have been logged out.');
+            try {
+              await logoutUser();
+            } catch (logoutErr) {
+              console.error('Forced logout after missing profile failed:', logoutErr);
+              setAuthError('Failed to sign out automatically. Please refresh the page.');
+              setCurrentUser(null);
+            }
+          } else {
+            toast.error('Failed to load your profile. Some features may be limited.');
+            setAuthError('Failed to load user profile.');
+            setCurrentUser(null);
+          }
         }
       } else {
         setCurrentUser(null);
