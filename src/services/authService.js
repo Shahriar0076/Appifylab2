@@ -4,8 +4,7 @@ import {
   signOut,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '../config/firebase';
+import { auth } from '../config/firebaseAuth';
 
 /**
  * Register a new user with Firebase Auth and create their Firestore profile.
@@ -18,6 +17,10 @@ import { auth, db } from '../config/firebase';
 export async function registerUser({ firstName, lastName, email, password }) {
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   const user = userCredential.user;
+  const [{ doc, setDoc, serverTimestamp }, { db }] = await Promise.all([
+    import('firebase/firestore'),
+    import('../config/firebaseFirestore'),
+  ]);
 
   const userDoc = {
     firstName,
@@ -68,6 +71,10 @@ export function subscribeToAuth(callback) {
 export async function getUserProfile(uid) {
   if (!uid) return null;
 
+  const [{ doc, getDoc }, { db }] = await Promise.all([
+    import('firebase/firestore'),
+    import('../config/firebaseFirestore'),
+  ]);
   const docSnap = await getDoc(doc(db, 'users', uid));
 
   if (!docSnap.exists()) return null;

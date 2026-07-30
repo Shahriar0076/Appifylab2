@@ -152,7 +152,14 @@ export function FeedPost({
         <h4 className="_feed_inner_timeline_post_title">{post.title}</h4>
         {imageSrc && (
           <div className="_feed_inner_timeline_image">
-            <img src={imageSrc} alt={post.title} className="_time_img" />
+            <img
+              src={imageSrc}
+              alt={post.title}
+              className="_time_img"
+              loading="lazy"
+              decoding="async"
+              fetchPriority="low"
+            />
           </div>
         )}
       </div>

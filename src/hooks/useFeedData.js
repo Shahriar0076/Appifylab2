@@ -1,8 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { clearAllImages } from '../utils/uploadImageStore';
-import { safeWriteJson, safeRemove } from '../utils/storage';
+import {
+  backupCorrupted,
+  safeReadArray,
+  safeRemove,
+  safeWriteJson,
+} from '../utils/storage';
 import { readQueue } from '../services/syncQueueService';
 import {
+  fetchRemotePostComments,
   fetchRemotePosts,
   subscribeToPostLikes,
 } from '../services/firestoreFeedService';
@@ -97,6 +103,7 @@ export function useFeedData(userId) {
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingRemote, setIsFetchingRemote] = useState(false);
   const [hasLoadedFromStorage, setHasLoadedFromStorage] = useState(false);
+  const [storageUserId, setStorageUserId] = useState(null);
   const [storageWarning, setStorageWarning] = useState('');
   const [lastDoc, setLastDoc] = useState(null);
   const [hasMoreRemote, setHasMoreRemote] = useState(false);
@@ -105,19 +112,18 @@ export function useFeedData(userId) {
     [...new Set(posts.map(getRemotePostId).filter(Boolean))].sort()
   );
 
-  // ── Initial load: clear cache and always fetch fresh from Firestore ──
+  // Render cached posts immediately; the feed refreshes them in the background.
   useEffect(() => {
     let isMounted = true;
 
     function loadPosts() {
       if (!userId) return;
 
-      // Clear the localStorage cache so fresh data is always fetched on
-      // browser reload instead of showing stale cached posts first.
-      clearStoredPosts(userId);
+      const storedPosts = readStoredPosts(userId) || [];
 
       if (isMounted) {
-        setPosts([]);
+        setPosts(storedPosts);
+        setStorageUserId(userId);
         setHasLoadedFromStorage(true);
         setIsLoading(false);
       }
@@ -131,7 +137,7 @@ export function useFeedData(userId) {
 
   // ── Persist every state change to localStorage ──
   useEffect(() => {
-    if (!hasLoadedFromStorage || isLoading) return;
+    if (!hasLoadedFromStorage || storageUserId !== userId || isLoading) return;
     if (!userId) return;
     const ok = writeStoredPosts(userId, posts);
     if (!ok) {
@@ -140,7 +146,7 @@ export function useFeedData(userId) {
         'Storage nearly full — changes may not persist after refresh.'
       );
     }
-  }, [hasLoadedFromStorage, isLoading, posts, userId]);
+  }, [hasLoadedFromStorage, isLoading, posts, storageUserId, userId]);
 
 
   /**
@@ -352,6 +358,7 @@ export function useFeedData(userId) {
   function mergeRemotePostsIntoState(currentPosts, result, remoteCurrentUser) {
     const merged = [...currentPosts];
     const existingLocalIds = new Set(merged.map((p) => p.localId || p.id));
+    const hasRemoteEngagement = result.engagementLoaded !== false;
 
     for (const remotePost of result.posts) {
       const sameRemoteIdIndex = merged.findIndex(
@@ -362,17 +369,21 @@ export function useFeedData(userId) {
         merged[sameRemoteIdIndex] = {
           ...currentPost,
           ...remotePost,
-          comments: mergeComments(
-            currentPost.comments,
-            remotePost.comments,
-            remoteCurrentUser?.id
-          ),
-          likes: mergeLikes(
-            { ...remotePost.likes, _postId: currentPost.id },
-            currentPost.likes,
-            remoteCurrentUser?.id,
-            remoteCurrentUser
-          ),
+          comments: hasRemoteEngagement
+            ? mergeComments(
+                currentPost.comments,
+                remotePost.comments,
+                remoteCurrentUser?.id
+              )
+            : currentPost.comments,
+          likes: hasRemoteEngagement
+            ? mergeLikes(
+                { ...remotePost.likes, _postId: currentPost.id },
+                currentPost.likes,
+                remoteCurrentUser?.id,
+                remoteCurrentUser
+              )
+            : currentPost.likes,
           localId: remotePost.localId || currentPost.localId || null,
         };
         continue;
@@ -386,17 +397,21 @@ export function useFeedData(userId) {
           merged[idx] = {
             ...merged[idx],
             ...remotePost,
-            comments: mergeComments(
-              merged[idx].comments,
-              remotePost.comments,
-              remoteCurrentUser?.id
-            ),
-            likes: mergeLikes(
-              { ...remotePost.likes, _postId: remotePost.id },
-              merged[idx].likes,
-              remoteCurrentUser?.id,
-              remoteCurrentUser
-            ),
+            comments: hasRemoteEngagement
+              ? mergeComments(
+                  merged[idx].comments,
+                  remotePost.comments,
+                  remoteCurrentUser?.id
+                )
+              : merged[idx].comments,
+            likes: hasRemoteEngagement
+              ? mergeLikes(
+                  { ...remotePost.likes, _postId: remotePost.id },
+                  merged[idx].likes,
+                  remoteCurrentUser?.id,
+                  remoteCurrentUser
+                )
+              : merged[idx].likes,
             localId: merged[idx].localId || merged[idx].id,
           };
         }
@@ -414,7 +429,11 @@ export function useFeedData(userId) {
     if (!currentUser) return;
     setIsFetchingRemote(true);
     try {
-      const result = await fetchRemotePosts({ currentUser, pageSize: 10 });
+      const result = await fetchRemotePosts({
+        currentUser,
+        pageSize: 10,
+        includeEngagement: false,
+      });
       if (result.posts.length === 0) {
         setHasMoreRemote(false);
         return;
@@ -427,6 +446,41 @@ export function useFeedData(userId) {
         const merged = mergeRemotePostsIntoState(currentPosts, result, currentUser);
         return merged;
       });
+
+      // Comments and replies are not part of the first-paint critical path.
+      // Likes are filled by the live subscription once the posts are visible.
+      void fetchRemotePostComments({
+        posts: result.posts,
+        currentUser,
+      })
+        .then((postsWithComments) => {
+          const commentsByPostId = new Map(
+            postsWithComments.map((post) => [
+              getRemotePostId(post),
+              post.comments,
+            ])
+          );
+          setPosts((currentPosts) =>
+            currentPosts.map((post) => {
+              const remoteComments = commentsByPostId.get(
+                getRemotePostId(post)
+              );
+              if (!remoteComments) return post;
+
+              return {
+                ...post,
+                comments: mergeComments(
+                  post.comments,
+                  remoteComments,
+                  currentUser.id
+                ),
+              };
+            })
+          );
+        })
+        .catch((error) => {
+          console.warn('Failed to fetch post comments:', error);
+        });
     } catch (err) {
       console.warn('Failed to fetch remote posts:', err);
       toast.warning('Could not fetch latest posts. Showing cached data.');

@@ -1,4 +1,7 @@
-import { CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from '../config/firebase';
+import {
+  CLOUDINARY_CLOUD_NAME,
+  CLOUDINARY_UPLOAD_PRESET,
+} from '../config/cloudinary';
 
 /**
  * Upload a resized JPEG blob to Cloudinary using an unsigned upload preset.

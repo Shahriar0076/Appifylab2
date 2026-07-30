@@ -1,4 +1,4 @@
-import { auth } from '../config/firebase';
+import { auth } from '../config/firebaseAuth';
 import { getUserProfile } from './authService';
 import currentUserJson from '../data/json/currentUser.json';
 import { normalizeUser } from '../data/adapters/userAdapter';

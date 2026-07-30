@@ -15,7 +15,7 @@ import {
   runTransaction,
   onSnapshot,
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db } from '../config/firebaseFirestore';
 import { formatRelativeTime } from '../utils/formatRelativeTime';
 
 // ---------------------------------------------------------------------------
@@ -27,21 +27,50 @@ const userCache = new Map();
 async function getUserSnapshot(uid) {
   if (userCache.has(uid)) return userCache.get(uid);
 
-  const snap = await getDoc(doc(db, 'users', uid));
-  if (!snap.exists()) return null;
+  const profilePromise = getDoc(doc(db, 'users', uid))
+    .then((snap) => {
+      if (!snap.exists()) return null;
 
-  const data = snap.data();
-  const profile = {
-    id: uid,
-    name: `${data.firstName} ${data.lastName}`,
-    initials: (data.firstName || '').charAt(0).toUpperCase(),
-    avatarColor: data.avatarColor || '#1890FF',
-    firstName: data.firstName,
-    lastName: data.lastName,
+      const data = snap.data();
+      return {
+        id: uid,
+        name: `${data.firstName} ${data.lastName}`,
+        initials: (data.firstName || '').charAt(0).toUpperCase(),
+        avatarColor: data.avatarColor || '#1890FF',
+        firstName: data.firstName,
+        lastName: data.lastName,
+      };
+    })
+    .catch((error) => {
+      userCache.delete(uid);
+      throw error;
+    });
+
+  // Cache the in-flight request too, so concurrent post/comment normalization
+  // does not issue duplicate reads for the same user.
+  userCache.set(uid, profilePromise);
+  return profilePromise;
+}
+
+function getAuthorSnapshot(data) {
+  if (!data.author) return null;
+
+  return {
+    id: data.author.id || data.userId,
+    name:
+      data.author.name ||
+      `${data.author.firstName || ''} ${data.author.lastName || ''}`.trim(),
+    initials:
+      data.author.initials ||
+      (data.author.firstName || '').charAt(0).toUpperCase(),
+    avatarColor: data.author.avatarColor || '#1890FF',
+    firstName: data.author.firstName,
+    lastName: data.author.lastName,
   };
+}
 
-  userCache.set(uid, profile);
-  return profile;
+async function resolveAuthor(data) {
+  return getAuthorSnapshot(data) || getUserSnapshot(data.userId);
 }
 
 function buildAuthorSnapshot(user) {
@@ -61,18 +90,19 @@ function buildAuthorSnapshot(user) {
 
 function normalizeFirestorePost(docSnap, authorProfile) {
   const data = docSnap.data();
+  const resolvedAuthor = authorProfile || getAuthorSnapshot(data);
   const createdAtISO = data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString();
   // Normalize the Firestore post doc into the UI shape
   return {
     id: docSnap.id,
     remoteId: docSnap.id,
     localId: data.localId || null,
-    author: authorProfile
+    author: resolvedAuthor
       ? {
-          id: authorProfile.id,
-          name: authorProfile.name,
-          initials: authorProfile.initials,
-          avatarColor: authorProfile.avatarColor,
+          id: resolvedAuthor.id,
+          name: resolvedAuthor.name,
+          initials: resolvedAuthor.initials,
+          avatarColor: resolvedAuthor.avatarColor,
         }
       : { id: data.userId, name: 'Unknown', initials: '?', avatarColor: '#ccc' },
     createdAt: createdAtISO,
@@ -96,18 +126,19 @@ function normalizeFirestorePost(docSnap, authorProfile) {
 
 function _normalizeFirestoreComment(docSnap, postId, authorProfile) {
   const data = docSnap.data();
+  const resolvedAuthor = authorProfile || getAuthorSnapshot(data);
   const createdAtISO = data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString();
   return {
     id: docSnap.id,
     remoteId: docSnap.id,
     localId: data.localId || null,
     postId: data.postId || postId,
-    author: authorProfile
+    author: resolvedAuthor
       ? {
-          id: authorProfile.id,
-          name: authorProfile.name,
-          initials: authorProfile.initials,
-          avatarColor: authorProfile.avatarColor,
+          id: resolvedAuthor.id,
+          name: resolvedAuthor.name,
+          initials: resolvedAuthor.initials,
+          avatarColor: resolvedAuthor.avatarColor,
         }
       : { id: data.userId, name: 'Unknown', initials: '?', avatarColor: '#ccc' },
     text: data.text || '',
@@ -122,6 +153,7 @@ function _normalizeFirestoreComment(docSnap, postId, authorProfile) {
 
 function _normalizeFirestoreReply(docSnap, postId, commentId, authorProfile) {
   const data = docSnap.data();
+  const resolvedAuthor = authorProfile || getAuthorSnapshot(data);
   const createdAtISO = data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString();
   return {
     id: docSnap.id,
@@ -129,12 +161,12 @@ function _normalizeFirestoreReply(docSnap, postId, commentId, authorProfile) {
     localId: data.localId || null,
     postId: data.postId || postId,
     commentId: data.commentId || commentId,
-    author: authorProfile
+    author: resolvedAuthor
       ? {
-          id: authorProfile.id,
-          name: authorProfile.name,
-          initials: authorProfile.initials,
-          avatarColor: authorProfile.avatarColor,
+          id: resolvedAuthor.id,
+          name: resolvedAuthor.name,
+          initials: resolvedAuthor.initials,
+          avatarColor: resolvedAuthor.avatarColor,
         }
       : { id: data.userId, name: 'Unknown', initials: '?', avatarColor: '#ccc' },
     text: data.text || '',
@@ -160,14 +192,20 @@ async function fetchPostLikesForPosts(postIds, currentUserId) {
   const likesByPost = new Map();
   if (postIds.length === 0) return likesByPost;
 
+  const batches = [];
   for (let i = 0; i < postIds.length; i += 10) {
-    const batch = postIds.slice(i, i + 10);
-    const q = query(
-      collection(db, 'postLikes'),
-      where('postId', 'in', batch)
-    );
-    const snap = await getDocs(q);
+    batches.push(postIds.slice(i, i + 10));
+  }
 
+  const snapshots = await Promise.all(
+    batches.map((batch) =>
+      getDocs(
+        query(collection(db, 'postLikes'), where('postId', 'in', batch))
+      )
+    )
+  );
+
+  for (const snap of snapshots) {
     for (const likeSnap of snap.docs) {
       const data = likeSnap.data();
       if (!likesByPost.has(data.postId)) likesByPost.set(data.postId, []);
@@ -175,24 +213,28 @@ async function fetchPostLikesForPosts(postIds, currentUserId) {
     }
   }
 
-  for (const [postId, likes] of likesByPost) {
-    likes.sort((a, b) => {
-      const aTime = a.createdAt?.toMillis?.() || 0;
-      const bTime = b.createdAt?.toMillis?.() || 0;
-      return bTime - aTime;
-    });
+  await Promise.all(
+    [...likesByPost.entries()].map(async ([postId, likes]) => {
+      likes.sort((a, b) => {
+        const aTime = a.createdAt?.toMillis?.() || 0;
+        const bTime = b.createdAt?.toMillis?.() || 0;
+        return bTime - aTime;
+      });
 
-    const previewUsers = [];
-    for (const like of likes.slice(0, 6)) {
-      const profile = await getUserSnapshot(like.userId);
-      if (profile) previewUsers.push(profile);
-    }
+      const previewUsers = (
+        await Promise.all(
+          likes.slice(0, 6).map((like) => getUserSnapshot(like.userId))
+        )
+      ).filter(Boolean);
 
-    likesByPost.set(postId, {
-      previewUsers,
-      likedByCurrentUser: likes.some((like) => like.userId === currentUserId),
-    });
-  }
+      likesByPost.set(postId, {
+        previewUsers,
+        likedByCurrentUser: likes.some(
+          (like) => like.userId === currentUserId
+        ),
+      });
+    })
+  );
 
   // Done fetching likes per post
   return likesByPost;
@@ -291,13 +333,20 @@ async function fetchCommentLikesForComments(commentIds, currentUserId) {
   const likesByComment = new Map();
   if (commentIds.length === 0 || !currentUserId) return likesByComment;
 
+  const batches = [];
   for (let i = 0; i < commentIds.length; i += 10) {
-    const batch = commentIds.slice(i, i + 10);
-    const q = query(
-      collection(db, 'commentLikes'),
-      where('commentId', 'in', batch)
-    );
-    const snap = await getDocs(q);
+    batches.push(commentIds.slice(i, i + 10));
+  }
+
+  const snapshots = await Promise.all(
+    batches.map((batch) =>
+      getDocs(
+        query(collection(db, 'commentLikes'), where('commentId', 'in', batch))
+      )
+    )
+  );
+
+  for (const snap of snapshots) {
     for (const docSnap of snap.docs) {
       const data = docSnap.data();
       if (!likesByComment.has(data.commentId)) {
@@ -327,13 +376,20 @@ async function fetchReplyLikesForReplies(replyIds, currentUserId) {
   const likesByReply = new Map();
   if (replyIds.length === 0 || !currentUserId) return likesByReply;
 
+  const batches = [];
   for (let i = 0; i < replyIds.length; i += 10) {
-    const batch = replyIds.slice(i, i + 10);
-    const q = query(
-      collection(db, 'replyLikes'),
-      where('replyId', 'in', batch)
-    );
-    const snap = await getDocs(q);
+    batches.push(replyIds.slice(i, i + 10));
+  }
+
+  const snapshots = await Promise.all(
+    batches.map((batch) =>
+      getDocs(
+        query(collection(db, 'replyLikes'), where('replyId', 'in', batch))
+      )
+    )
+  );
+
+  for (const snap of snapshots) {
     for (const docSnap of snap.docs) {
       const data = docSnap.data();
       if (!likesByReply.has(data.replyId)) {
@@ -357,27 +413,33 @@ async function fetchCommentsForPosts(postIds, currentUserId) {
   const commentsByPost = new Map();
   if (postIds.length === 0) return commentsByPost;
 
-  // Collect all comments across all post ID batches
-  const allComments = [];
-
-  // Firestore `in` is limited to 10 values per query
+  const postBatches = [];
   for (let i = 0; i < postIds.length; i += 10) {
-    const batch = postIds.slice(i, i + 10);
-    const q = query(
-      collection(db, 'comments'),
-      where('postId', 'in', batch),
-      orderBy('createdAt', 'asc')
-    );
-    const snap = await getDocs(q);
-    for (const docSnap of snap.docs) {
+    postBatches.push(postIds.slice(i, i + 10));
+  }
+
+  const commentSnapshots = await Promise.all(
+    postBatches.map((batch) =>
+      getDocs(
+        query(
+          collection(db, 'comments'),
+          where('postId', 'in', batch),
+          orderBy('createdAt', 'asc')
+        )
+      )
+    )
+  );
+  const commentDocs = commentSnapshots.flatMap((snapshot) => snapshot.docs);
+  const allComments = await Promise.all(
+    commentDocs.map(async (docSnap) => {
       const data = docSnap.data();
-      const authorProfile = await getUserSnapshot(data.userId);
-      allComments.push({
+      const authorProfile = await resolveAuthor(data);
+      return {
         ..._normalizeFirestoreComment(docSnap, data.postId, authorProfile),
         _postId: data.postId,
-      });
-    }
-  }
+      };
+    })
+  );
 
   if (allComments.length === 0) return commentsByPost;
 
@@ -385,25 +447,44 @@ async function fetchCommentsForPosts(postIds, currentUserId) {
   const commentIds = allComments.map((c) => c.id);
   const repliesByCommentId = new Map();
 
-  // Fetch replies in batches of 10
+  const commentBatches = [];
   for (let i = 0; i < commentIds.length; i += 10) {
-    const batch = commentIds.slice(i, i + 10);
-    const q = query(
-      collection(db, 'replies'),
-      where('commentId', 'in', batch),
-      orderBy('createdAt', 'asc')
-    );
-    const snap = await getDocs(q);
-    for (const docSnap of snap.docs) {
+    commentBatches.push(commentIds.slice(i, i + 10));
+  }
+
+  const replySnapshots = await Promise.all(
+    commentBatches.map((batch) =>
+      getDocs(
+        query(
+          collection(db, 'replies'),
+          where('commentId', 'in', batch),
+          orderBy('createdAt', 'asc')
+        )
+      )
+    )
+  );
+  const replyDocs = replySnapshots.flatMap((snapshot) => snapshot.docs);
+  const normalizedReplies = await Promise.all(
+    replyDocs.map(async (docSnap) => {
       const data = docSnap.data();
-      const authorProfile = await getUserSnapshot(data.userId);
-      if (!repliesByCommentId.has(data.commentId)) {
-        repliesByCommentId.set(data.commentId, []);
-      }
-      repliesByCommentId.get(data.commentId).push(
-        _normalizeFirestoreReply(docSnap, data.postId, data.commentId, authorProfile)
-      );
+      const authorProfile = await resolveAuthor(data);
+      return {
+        commentId: data.commentId,
+        reply: _normalizeFirestoreReply(
+          docSnap,
+          data.postId,
+          data.commentId,
+          authorProfile
+        ),
+      };
+    })
+  );
+
+  for (const { commentId, reply } of normalizedReplies) {
+    if (!repliesByCommentId.has(commentId)) {
+      repliesByCommentId.set(commentId, []);
     }
+    repliesByCommentId.get(commentId).push(reply);
   }
 
   // Collect all reply IDs and fetch their likes
@@ -455,6 +536,30 @@ async function fetchCommentsForPosts(postIds, currentUserId) {
   return commentsByPost;
 }
 
+export async function fetchRemotePostComments({ posts, currentUser }) {
+  if (!currentUser || posts.length === 0) return posts;
+
+  const postMap = new Map(
+    posts.map((post) => [post.remoteId || post.id, { ...post }])
+  );
+  const commentsByPostId = await fetchCommentsForPosts(
+    [...postMap.keys()],
+    currentUser.id
+  );
+
+  for (const [postId, comments] of commentsByPostId) {
+    const post = postMap.get(postId);
+    if (!post) continue;
+
+    post.comments = {
+      previousCount: Math.max(0, comments.length - 1),
+      items: comments,
+    };
+  }
+
+  return [...postMap.values()];
+}
+
 // ---------------------------------------------------------------------------
 // Fetch remote posts with pagination
 // ---------------------------------------------------------------------------
@@ -468,15 +573,20 @@ async function fetchCommentsForPosts(postIds, currentUserId) {
  * @param {object|null} options.lastDoc - Last document from previous page for pagination
  * @returns {Promise<{posts: Array, lastDoc: object|null, hasMore: boolean}>}
  */
-export async function fetchRemotePosts({ currentUser, pageSize = 10, lastDoc = null }) {
+export async function fetchRemotePosts({
+  currentUser,
+  pageSize = 10,
+  lastDoc = null,
+  includeEngagement = true,
+}) {
   if (!currentUser) return { posts: [], lastDoc: null, hasMore: false };
 
   const uid = currentUser.id;
   let results = [];
 
-  // 1. Fetch public posts
-  let publicDocs = [];
-  if (!lastDoc?.publicDone) {
+  const fetchPublicPosts = async () => {
+    if (lastDoc?.publicDone) return [];
+
     const publicConstraints = [
       where('visibility', '==', 'public'),
       orderBy('createdAt', 'desc'),
@@ -486,12 +596,12 @@ export async function fetchRemotePosts({ currentUser, pageSize = 10, lastDoc = n
       publicConstraints.push(startAfter(lastDoc.publicLastDoc));
     }
     const publicQuery = query(collection(db, 'posts'), ...publicConstraints);
-    publicDocs = (await getDocs(publicQuery)).docs;
-  }
+    return (await getDocs(publicQuery)).docs;
+  };
 
-  // 2. Fetch current user's private posts
-  let privateDocs = [];
-  if (!lastDoc?.privateDone) {
+  const fetchPrivatePosts = async () => {
+    if (lastDoc?.privateDone) return [];
+
     const privateConstraints = [
       where('userId', '==', uid),
       where('visibility', '==', 'private'),
@@ -502,43 +612,55 @@ export async function fetchRemotePosts({ currentUser, pageSize = 10, lastDoc = n
       privateConstraints.push(startAfter(lastDoc.privateLastDoc));
     }
     const privateQuery = query(collection(db, 'posts'), ...privateConstraints);
-    privateDocs = (await getDocs(privateQuery)).docs;
-  }
+    return (await getDocs(privateQuery)).docs;
+  };
+
+  const [publicDocs, privateDocs] = await Promise.all([
+    fetchPublicPosts(),
+    fetchPrivatePosts(),
+  ]);
 
   // 3. Merge results
   const postMap = new Map();
-
-  for (const snap of [...publicDocs, ...privateDocs]) {
-    if (!postMap.has(snap.id)) {
-      const userId = snap.data().userId;
-      const authorProfile = await getUserSnapshot(userId);
-      const post = normalizeFirestorePost(snap, authorProfile);
-      postMap.set(snap.id, post);
-    }
+  const uniquePostDocs = new Map(
+    [...publicDocs, ...privateDocs].map((snap) => [snap.id, snap])
+  );
+  const normalizedPosts = await Promise.all(
+    [...uniquePostDocs.values()].map(async (snap) => {
+      const authorProfile = await resolveAuthor(snap.data());
+      return normalizeFirestorePost(snap, authorProfile);
+    })
+  );
+  for (const post of normalizedPosts) {
+    postMap.set(post.id, post);
   }
 
   // 3a. Fetch post likes, comments, and replies for all fetched posts
   const postIds = Array.from(postMap.keys());
-  // Enrich with likes and comments
-  const likesByPostId = await fetchPostLikesForPosts(postIds, uid);
-  for (const [postId, likes] of likesByPostId) {
-    const post = postMap.get(postId);
-    if (post) {
-      post.likes = {
-        ...post.likes,
-        ...likes,
-      };
-    }
-  }
+  if (includeEngagement) {
+    const [likesByPostId, commentsByPostId] = await Promise.all([
+      fetchPostLikesForPosts(postIds, uid),
+      fetchCommentsForPosts(postIds, uid),
+    ]);
 
-  const commentsByPostId = await fetchCommentsForPosts(postIds, uid);
-  for (const [postId, comments] of commentsByPostId) {
-    const post = postMap.get(postId);
-    if (post) {
-      post.comments = {
-        previousCount: Math.max(0, comments.length - 1),
-        items: comments,
-      };
+    for (const [postId, likes] of likesByPostId) {
+      const post = postMap.get(postId);
+      if (post) {
+        post.likes = {
+          ...post.likes,
+          ...likes,
+        };
+      }
+    }
+
+    for (const [postId, comments] of commentsByPostId) {
+      const post = postMap.get(postId);
+      if (post) {
+        post.comments = {
+          previousCount: Math.max(0, comments.length - 1),
+          items: comments,
+        };
+      }
     }
   }
 
@@ -559,7 +681,12 @@ export async function fetchRemotePosts({ currentUser, pageSize = 10, lastDoc = n
   };
 
   // Return posts with likes and comments enriched
-  return { posts: results, lastDoc: newLastDoc, hasMore };
+  return {
+    posts: results,
+    lastDoc: newLastDoc,
+    hasMore,
+    engagementLoaded: includeEngagement,
+  };
 }
 
 // ---------------------------------------------------------------------------
