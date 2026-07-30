@@ -131,10 +131,7 @@ export function useFeedData() {
 
 
   /**
-   * Check if there is a pending/failed TOGGLE_POST_LIKE queue item for this
-   * post/user. When a like/unlike is queued but not yet synced, the local
-   * queued value is the true intent; otherwise, the Firestore remote state
-   * is authoritative.
+   * Check for a pending TOGGLE_POST_LIKE queue item. Returns queued value or null.
    */
   function getQueuedLikeValue(postId, userId) {
     const queue = readQueue();
@@ -183,13 +180,9 @@ export function useFeedData() {
   }
 
   /**
-   * Merge remote comments with local comments.
-   * Remote comments are the source of truth for synced comments (from all users).
-   * Local comments that are still pending/failed and not yet in the remote set
-   * are preserved so the current user's unsynced contributions don't disappear.
-   * When a remote comment matches a local comment (same id), the remote version
-   * wins but local queued likes are preserved to avoid race conditions with
-   * toggleCommentLike/toggleReplyLike that fired before the remote fetch completed.
+   * Merge remote comments with local.
+   * Keeps pending local comments not yet in remote.
+   * For matching comments, remote wins but preserves queued like toggles.
    */
   function mergeComments(localComments, remoteComments, currentUserId) {
     const localItems = localComments?.items || [];

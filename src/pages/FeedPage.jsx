@@ -66,11 +66,7 @@ export function FeedPage() {
   const visiblePosts = posts.slice(0, visiblePostCount);
   const hasMorePosts = visiblePostCount < posts.length;
 
-  // IntersectionObserver: reveal more local posts when sentinel is visible
-  // The sentinel has a 1px min-height so IntersectionObserver reliably detects
-  // it (zero-height elements may report intersectionRatio = NaN, preventing
-  // the callback from firing). rootMargin: "200px" triggers loading before
-  // the user actually reaches the bottom.
+  // Reveal more local posts when sentinel is visible (200px offset)
   useEffect(() => {
     const loadMoreNode = loadMoreRef.current;
     if (!loadMoreNode || !hasMorePosts) return undefined;
@@ -157,10 +153,7 @@ export function FeedPage() {
   }
 
   // ── User ready, initial posts loading: show skeleton cards ──
-  // Only show skeleton on initial load (isLoading). For background remote
-  // fetch (isFetchingRemote), show the feed with cached posts instead of
-  // replacing everything with a skeleton — this avoids flicker and keeps
-  // the IntersectionObserver sentinel connected.
+  // Show skeleton only on initial load to avoid flickering cached content
   if (isLoading) {
     return (
       <PageShell>

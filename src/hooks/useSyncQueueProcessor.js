@@ -33,8 +33,6 @@ const ACTION_LABELS = {
 
 /**
  * Race a promise against a timeout.
- * The timeout wins and rejects — the original promise continues but its result
- * is ignored once this function has settled.
  */
 function withTimeout(promise, ms, errorMessage) {
   let timerId = null;
@@ -235,8 +233,7 @@ export function useSyncQueueProcessor({ isOnline, setSyncStatusMessage, setPosts
             const commentRemotePostId = commentHostPost?.remoteId || null;
 
             if (!commentRemotePostId) {
-              // Post hasn't been synced yet; skip this item for now.
-              // It will be retried on the next queue pass.
+              // Parent post not synced — retry on next pass
               markFailed(item.id, 'Parent post not yet synced.');
               break;
             }
@@ -427,8 +424,7 @@ export function useSyncQueueProcessor({ isOnline, setSyncStatusMessage, setPosts
         toast.dismiss('saving-toast');
         setSyncStatusMessage('Failed to sync · Retry');
 
-        // Update the affected post's syncStatus so the UI shows 'Failed to sync'
-        // instead of the perpetual 'Saving...'
+        // Mark post sync failed in local state
         const affectedPostId = item.payload?.localPostId || item.payload?.postId;
         if (affectedPostId) {
           setPosts((prev) =>
@@ -440,7 +436,7 @@ export function useSyncQueueProcessor({ isOnline, setSyncStatusMessage, setPosts
           );
         }
 
-        // Stop retrying after max attempts — item will stay in queue as 'failed'
+        // Stop retrying after max attempts
         if (currentAttempts >= 5) {
           toast.dismiss('saving-toast');
           setSyncStatusMessage('Sync failed after multiple attempts. Tap Retry on the post to try again.');
