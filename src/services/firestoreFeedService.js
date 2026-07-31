@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   addDoc,
+  documentId,
   getDoc,
   getDocs,
   query,
@@ -23,6 +24,57 @@ import { formatRelativeTime } from '../utils/formatRelativeTime';
 // ---------------------------------------------------------------------------
 
 const userCache = new Map();
+
+/**
+ * Batch-fetch user profiles by document ID (Firestore `in` allows 10 values).
+ * Returns a Map of uid → profile; misses (deleted users) are absent.
+ * Entries already warm in userCache are returned without a network read.
+ */
+async function fetchUsersByIds(uids) {
+  const uniqueIds = [...new Set(uids.filter(Boolean))];
+  const missingIds = uniqueIds.filter((uid) => !userCache.has(uid));
+  const usersById = new Map();
+
+  if (missingIds.length > 0) {
+    const batches = [];
+    for (let i = 0; i < missingIds.length; i += 10) {
+      batches.push(missingIds.slice(i, i + 10));
+    }
+
+    const snapshots = await Promise.all(
+      batches.map((batch) =>
+        getDocs(
+          query(collection(db, 'users'), where(documentId(), 'in', batch))
+        )
+      )
+    );
+
+    for (const snap of snapshots.flatMap((snapshot) => snapshot.docs)) {
+      const data = snap.data();
+      if (!data) continue;
+
+      const profile = {
+        id: snap.id,
+        name: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
+        initials: (data.firstName || '').charAt(0).toUpperCase(),
+        avatarColor: data.avatarColor || '#1890FF',
+        firstName: data.firstName || '',
+        lastName: data.lastName || '',
+      };
+      userCache.set(snap.id, Promise.resolve(profile));
+      usersById.set(snap.id, profile);
+    }
+  }
+
+  for (const uid of uniqueIds) {
+    if (!usersById.has(uid)) {
+      const cached = await userCache.get(uid).catch(() => null);
+      if (cached) usersById.set(uid, cached);
+    }
+  }
+
+  return usersById;
+}
 
 async function getUserSnapshot(uid) {
   if (userCache.has(uid)) return userCache.get(uid);
@@ -213,28 +265,36 @@ async function fetchPostLikesForPosts(postIds, currentUserId) {
     }
   }
 
-  await Promise.all(
-    [...likesByPost.entries()].map(async ([postId, likes]) => {
-      likes.sort((a, b) => {
-        const aTime = a.createdAt?.toMillis?.() || 0;
-        const bTime = b.createdAt?.toMillis?.() || 0;
-        return bTime - aTime;
-      });
+  // Batch-fetch preview user profiles once per page instead of one getDoc
+  // per liker (Firestore `in` queries take batches of 10).
+  const topLikersByPost = new Map();
+  const previewUserIds = [];
+  for (const [postId, likes] of likesByPost) {
+    likes.sort((a, b) => {
+      const aTime = a.createdAt?.toMillis?.() || 0;
+      const bTime = b.createdAt?.toMillis?.() || 0;
+      return bTime - aTime;
+    });
+    const topLikers = likes.slice(0, 6);
+    topLikersByPost.set(postId, topLikers);
+    for (const like of topLikers) previewUserIds.push(like.userId);
+  }
 
-      const previewUsers = (
-        await Promise.all(
-          likes.slice(0, 6).map((like) => getUserSnapshot(like.userId))
-        )
-      ).filter(Boolean);
+  const usersById = await fetchUsersByIds(previewUserIds);
 
-      likesByPost.set(postId, {
-        previewUsers,
-        likedByCurrentUser: likes.some(
-          (like) => like.userId === currentUserId
-        ),
-      });
-    })
-  );
+  for (const [postId, likes] of likesByPost) {
+    const previewUsers = topLikersByPost
+      .get(postId)
+      .map((like) => usersById.get(like.userId))
+      .filter(Boolean);
+
+    likesByPost.set(postId, {
+      previewUsers,
+      likedByCurrentUser: likes.some(
+        (like) => like.userId === currentUserId
+      ),
+    });
+  }
 
   // Done fetching likes per post
   return likesByPost;
@@ -279,30 +339,37 @@ export function subscribeToPostLikes({
         }
 
         const likesByPost = new Map();
-        await Promise.all(
-          batch.map(async (postId) => {
-            const likes = rawLikesByPost.get(postId);
-            likes.sort((a, b) => {
-              const aTime = a.createdAt?.toMillis?.() || 0;
-              const bTime = b.createdAt?.toMillis?.() || 0;
-              return bTime - aTime;
-            });
+        const topLikersByPost = new Map();
+        const previewUserIds = [];
+        for (const postId of batch) {
+          const likes = rawLikesByPost.get(postId);
+          likes.sort((a, b) => {
+            const aTime = a.createdAt?.toMillis?.() || 0;
+            const bTime = b.createdAt?.toMillis?.() || 0;
+            return bTime - aTime;
+          });
+          const topLikers = likes.slice(0, 6);
+          topLikersByPost.set(postId, topLikers);
+          for (const like of topLikers) previewUserIds.push(like.userId);
+        }
 
-            const previewUsers = (
-              await Promise.all(
-                likes.slice(0, 6).map((like) => getUserSnapshot(like.userId))
-              )
-            ).filter(Boolean);
+        const usersById = await fetchUsersByIds(previewUserIds);
 
-            likesByPost.set(postId, {
-              count: likes.length,
-              previewUsers,
-              likedByCurrentUser: likes.some(
-                (like) => like.userId === currentUserId
-              ),
-            });
-          })
-        );
+        for (const postId of batch) {
+          const likes = rawLikesByPost.get(postId);
+          const previewUsers = topLikersByPost
+            .get(postId)
+            .map((like) => usersById.get(like.userId))
+            .filter(Boolean);
+
+          likesByPost.set(postId, {
+            count: likes.length,
+            previewUsers,
+            likedByCurrentUser: likes.some(
+              (like) => like.userId === currentUserId
+            ),
+          });
+        }
 
         // Ignore an older async profile lookup if a newer snapshot arrived.
         if (active && currentVersion === snapshotVersion) {
